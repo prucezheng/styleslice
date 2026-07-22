@@ -75,6 +75,7 @@ export interface StyleResult extends StyleAnalysis {
     primaryImageIds: string[]; // 重点参考
   };
   markdown: string; // 由 renderMarkdown() 生成
+  prompt: string;   // 由 renderPrompt() 生成（AI 生图提示词）
   version: number;
   createdAt: string;
   updatedAt: string;

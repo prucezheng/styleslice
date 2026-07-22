@@ -1146,6 +1146,26 @@ button {
   white-space: nowrap;
 }
 
+.prompt-card {
+  padding: 18px 20px;
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  background: #fffbeb;
+  font: 400 15px/1.7 var(--font-main);
+  color: #2d2d2d;
+  word-break: break-word;
+}
+
+.prompt-card p {
+  margin: 0;
+}
+
+.download-actions button.copied {
+  background: #18b563;
+  color: #fff;
+  border-color: #18b563;
+}
+
 .download-actions {
   display: grid;
   justify-items: center;

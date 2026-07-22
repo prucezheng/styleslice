@@ -40,6 +40,7 @@ interface StyleResult {
     texture?: VisualRule;
   };
   markdown: string;
+  prompt?: string;
   fallback?: boolean;
   fallbackReason?: string;
   source?: {
@@ -57,7 +58,7 @@ interface UploadedImage {
   size: number;
 }
 
-type View = "home" | "archive" | "detail" | "md";
+type View = "home" | "archive" | "detail";
 type Stage = "idle" | "uploading" | "analyzing" | "saving" | "done";
 
 const USER_ID = "SLICE";
@@ -79,6 +80,24 @@ function downloadText(fileName: string, content: string, mime: string) {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // 回退方案
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return true;
+  }
 }
 
 export default function Home() {
@@ -274,11 +293,7 @@ export default function Home() {
         )}
 
         {view === "detail" && activeStyle && (
-          <DetailScreen style={activeStyle} onBack={goArchive} onOpenMd={() => setView("md")} />
-        )}
-
-        {view === "md" && activeStyle && (
-          <MarkdownScreen style={activeStyle} onBack={() => setView("detail")} />
+          <DetailScreen style={activeStyle} onBack={goArchive} />
         )}
       </section>
     </main>
@@ -491,15 +506,22 @@ function ArchiveScreen({
 function DetailScreen({
   style,
   onBack,
-  onOpenMd,
 }: {
   style: StyleResult;
   onBack: () => void;
-  onOpenMd: () => void;
 }) {
   const [boardOpen, setBoardOpen] = useState(false);
-  const mdName = `${style.name || "styleslice"}_spec.md`.replace(/[\\/:*?"<>|]/g, "_");
+  const [copied, setCopied] = useState(false);
   const paletteName = `${style.name || "styleslice"}_palette.json`.replace(/[\\/:*?"<>|]/g, "_");
+  const promptText = style.prompt ?? style.markdown;
+
+  const handleCopy = async () => {
+    const ok = await copyToClipboard(promptText);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="screen detail-screen">
@@ -530,23 +552,16 @@ function DetailScreen({
           </button>
         </section>
 
-        <section className="detail-section attachments">
-          <h2 className="section-label">文档</h2>
-          <button className="attachment-file" type="button" onClick={onOpenMd}>
-            <span className="file-icon">
-              <img src="/icons/document.png" alt="" aria-hidden="true" />
-            </span>
-            <div>
-              <strong>{mdName}</strong>
-              <small>{Math.max(1, Math.ceil(style.markdown.length / 1024))} KB · Markdown Document</small>
-            </div>
-          </button>
+        <section className="detail-section prompt-section">
+          <h2 className="section-label">AI 生图提示词</h2>
+          <div className="prompt-card">
+            <p>{promptText}</p>
+          </div>
         </section>
 
         <div className="download-actions">
-          <button type="button" onClick={() => downloadText(mdName, style.markdown, "text/markdown;charset=utf-8")}>
-            <img src="/icons/download-document.png" alt="" aria-hidden="true" />
-            <span>下载 MD</span>
+          <button type="button" onClick={handleCopy} className={copied ? "copied" : ""}>
+            <span>{copied ? "✓ 已复制" : "📋 复制提示词"}</span>
           </button>
           <button
             type="button"
@@ -764,27 +779,3 @@ function StyleCardBoard({ style, expanded = false }: { style: StyleResult; expan
   );
 }
 
-function MarkdownScreen({ style, onBack }: { style: StyleResult; onBack: () => void }) {
-  const mdName = `${style.name || "styleslice"}_spec.md`.replace(/[\\/:*?"<>|]/g, "_");
-
-  return (
-    <div className="screen markdown-screen">
-      <button className="back-link" type="button" onClick={onBack}>← BACK TO DETAIL</button>
-      <header className="markdown-header">
-        <span>Markdown</span>
-        <h1>{style.name}</h1>
-        <p>{mdName}</p>
-      </header>
-      <article className="markdown-sheet">
-        <pre>{style.markdown}</pre>
-      </article>
-      <button
-        className="md-floating-download"
-        type="button"
-        onClick={() => downloadText(mdName, style.markdown, "text/markdown;charset=utf-8")}
-      >
-        Download MD
-      </button>
-    </div>
-  );
-}

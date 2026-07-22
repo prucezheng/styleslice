@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImages } from "@/lib/doubao";
-import { renderMarkdown } from "@/lib/md";
+import { renderMarkdown, renderPrompt } from "@/lib/md";
 import { readUpload, isValidId } from "@/lib/store";
 import { DEMO_ANALYSIS } from "@/lib/demo";
 import type { StyleAnalysis } from "@/lib/schema";
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
   const result: Record<string, unknown> = {
     ...analysis,
     markdown: renderMarkdown(analysis),
+    prompt: renderPrompt(analysis),
     source: { imageIds, primaryImageIds },
     fallback,
   };

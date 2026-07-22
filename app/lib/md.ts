@@ -23,6 +23,77 @@ function fmtList(items: string[]): string {
   return items.map((i) => `- ${i}`).join("\n");
 }
 
+/**
+ * JSON → AI 生图提示词（普通用户可直复制粘贴到 Midjourney / DALL·E / 豆包 等）
+ * 自然语言段落，不包含 markdown 标记
+ */
+export function renderPrompt(a: StyleAnalysis): string {
+  const colorList = (a.colors ?? [])
+    .map((c) => `${c.name}（${c.hex}）`)
+    .join("、");
+
+  const keywordList = (a.keywords ?? []).map((k) => k.meaning).join("；");
+
+  const parts: string[] = [];
+
+  // 开场：风格名 + 一句话定义
+  parts.push(
+    `生成一张「${a.name}」风格的图片。${a.summary}。`
+  );
+
+  // 配色
+  if (colorList) {
+    parts.push(`使用以下配色方案：${colorList}。`);
+  }
+
+  // 核心视觉元素
+  if (keywordList) {
+    parts.push(`${keywordList}。`);
+  }
+
+  // 构图与布局
+  const layoutClues: string[] = [];
+  if (a.layout?.density?.value) layoutClues.push(`画面${a.layout.density.value}`);
+  if (a.layout?.visualFocus?.value) layoutClues.push(`视觉中心放在${a.layout.visualFocus.value}`);
+  if (a.layout?.whitespace?.value) layoutClues.push(`留白方面${a.layout.whitespace.value}`);
+  if (layoutClues.length) parts.push(`构图方面：${layoutClues.join("，")}。`);
+
+  // 形状与形态
+  const shapeClues: string[] = [];
+  if (a.shapes?.corners?.value) shapeClues.push(a.shapes.corners.value);
+  if (a.shapes?.form?.value) shapeClues.push(`元素形态为${a.shapes.form.value}`);
+  if (a.shapes?.borders?.value) shapeClues.push(a.shapes.borders.value);
+  if (shapeClues.length) parts.push(`形状样式：${shapeClues.join("，")}。`);
+
+  // 图像风格
+  if (a.imagery?.type?.value) {
+    parts.push(`图像类型为${a.imagery.type.value}。`);
+  }
+  if (a.imagery?.treatment?.value) {
+    parts.push(`画面上${a.imagery.treatment.value}。`);
+  }
+
+  // 材质纹理
+  if (a.effects?.texture?.value) {
+    parts.push(`材质纹理：${a.effects.texture.value}。`);
+  }
+  if (a.effects?.shadow?.value) {
+    parts.push(`阴影方面${a.effects.shadow.value}。`);
+  }
+
+  // 必须保留
+  if ((a.mustKeep ?? []).length) {
+    parts.push(`一定要保留：${a.mustKeep.join("；")}。`);
+  }
+
+  // 避免
+  if ((a.avoid ?? []).length) {
+    parts.push(`严格避免以下做法：${a.avoid.join("；")}。`);
+  }
+
+  return parts.join("");
+}
+
 export function renderMarkdown(a: StyleAnalysis): string {
   const roleLabel: Record<string, string> = {
     primary: "主色",
