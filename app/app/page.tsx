@@ -311,7 +311,7 @@ function HomeScreen({
     <div className="screen home-screen">
       <button className="identity-strip" type="button" onClick={onArchive} aria-label="打开资料库">
         <span className="avatar-mark" aria-hidden="true">SS</span>
-        <span className="brand-chip">NEWBORN CARE</span>
+        <span className="brand-chip">STYLESLICE</span>
         <span className="user-id">{USER_ID}</span>
       </button>
 
