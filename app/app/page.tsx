@@ -59,7 +59,7 @@ interface UploadedImage {
 type View = "home" | "archive" | "detail" | "md";
 type Stage = "idle" | "uploading" | "analyzing" | "saving" | "done";
 
-const USER_ID = "3036321351";
+const USER_ID = "SLICE";
 
 function formatBytes(size: number) {
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
@@ -180,10 +180,18 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageIds, primaryImageIds: [imageIds[0]] }),
       });
-      const analysis = await analysisRes.json();
+      let analysis: StyleResult;
+      try {
+        const text = await analysisRes.text();
+        analysis = JSON.parse(text) as StyleResult;
+      } catch {
+        throw new Error("服务暂时不可用，AI 模型响应超时，请重试或刷新页面。");
+      }
       if (!analysisRes.ok) {
-        const detail = typeof analysis.detail === "string" ? `：${analysis.detail}` : "";
-        throw new Error(`${analysis.error ?? "风格分析失败"}${detail}`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const err = analysis as any;
+        const detailStr = typeof err.detail === "string" ? `：${err.detail}` : "";
+        throw new Error(`${err.error ?? "风格分析失败"}${detailStr}`);
       }
       if (analysis.fallback) {
         throw new Error(`当前结果不是大模型真实分析：${analysis.fallbackReason ?? "fallback"}`);
@@ -347,7 +355,7 @@ function HomeScreen({
             onChange={onFileInput}
           />
           {previews.length ? (
-            <div className="preview-grid">
+            <div className={`preview-grid grid-${Math.min(previews.length, 4)}`}>
               {previews.slice(0, 4).map((src, index) => (
                 <img key={src} src={src} alt={`Reference ${index + 1}`} />
               ))}
@@ -452,6 +460,15 @@ function ArchiveScreen({
                 } as React.CSSProperties}
               >
                 <span className="slice-badge">StyleSlice</span>
+                {style.source?.imageIds?.[0] && (
+                  <div className="card-image-frame">
+                    <img
+                      src={`/api/images/${style.source!.imageIds[0]}`}
+                      alt={style.name}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
                 <strong>{style.name}</strong>
                 <small>{style.summary}</small>
                 <div className="mini-palette">
