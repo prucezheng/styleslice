@@ -1,57 +1,35 @@
 /**
- * Vercel 存储层：Vercel Blob（图片） + Upstash Redis（资料库）
+ * Supabase 存储层：Storage（图片） + PostgreSQL（资料库）
  *
- * 环境变量：
- *   BLOB_READ_WRITE_TOKEN   Vercel Blob 读写令牌（集成自动注入）
- *   KV_URL / KV_REST_API_URL / KV_REST_API_TOKEN   Upstash Redis 连接信息
+ * 环境变量（Supabase Dashboard → Settings → API）：
+ *   NEXT_PUBLIC_SUPABASE_URL      项目 URL
+ *   SUPABASE_SERVICE_ROLE_KEY     service_role key（服务端操作）
  *
- * 本地开发：npx vercel env pull 拉取环境变量
+ * 初始化（在 Supabase SQL Editor 中运行）：
+ *   CREATE TABLE IF NOT EXISTS styles (
+ *     style_id TEXT PRIMARY KEY,
+ *     data     JSONB NOT NULL,
+ *     created_at TIMESTAMPTZ DEFAULT NOW(),
+ *     updated_at TIMESTAMPTZ DEFAULT NOW()
+ *   );
+ *
+ * 然后创建 Storage bucket：
+ *   Supabase Dashboard → Storage → New Bucket → 名称 "uploads"，勾选 "Public bucket"
  */
 
-import { put, del as blobDel, head as blobHead } from "@vercel/blob";
-import { Redis } from "@upstash/redis";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import type { StyleResult } from "./schema";
 
-/* ---------- Redis 客户端（延迟初始化） ---------- */
+/* ---------- Supabase 客户端 ---------- */
 
-let _redis: Redis | null = null;
-
-function redis(): Redis {
-  if (!_redis) {
-    const url = process.env.KV_REST_API_URL ?? process.env.KV_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) {
-      throw new Error("未配置 KV_REST_API_URL 或 KV_REST_API_TOKEN");
-    }
-    _redis = new Redis({ url, token });
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("未配置 NEXT_PUBLIC_SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY");
   }
-  return _redis;
-}
-
-const STYLES_KEY = "styleslice:styles";
-const STYLES_LOCK_KEY = "styleslice:styles:lock";
-
-/* ---------- 简易 Redis 分布式锁 ---------- */
-
-async function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const r = redis();
-  const lockValue = crypto.randomBytes(8).toString("hex");
-  for (let i = 0; i < 30; i++) {
-    // NX: 仅当 key 不存在时 set；EX: 过期避免死锁
-    const acquired = await r.set(STYLES_LOCK_KEY, lockValue, { nx: true, ex: 10 });
-    if (acquired === "OK") break;
-    await new Promise((r) => setTimeout(r, 200 + Math.random() * 300));
-  }
-  try {
-    return await fn();
-  } finally {
-    // 仅释放自己持有的锁
-    const current = await r.get(STYLES_LOCK_KEY);
-    if (current === lockValue) {
-      await r.del(STYLES_LOCK_KEY);
-    }
-  }
+  return createClient(url, key);
 }
 
 /* ---------- ID 工具 ---------- */
@@ -68,12 +46,6 @@ export function isValidId(id: string): boolean {
 
 /* ---------- MIME 工具 ---------- */
 
-const EXT_TO_MIME: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-};
-
 export function extForMime(mime: string): string | null {
   const map: Record<string, string> = {
     "image/jpeg": ".jpg",
@@ -83,115 +55,134 @@ export function extForMime(mime: string): string | null {
   return map[mime] ?? null;
 }
 
-/* ---------- 图片上传（Vercel Blob） ---------- */
+const EXT_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".bin": "application/octet-stream",
+};
+
+/* ---------- 图片上传（Supabase Storage） ---------- */
+
+const BUCKET = "uploads";
 
 export async function saveUpload(buffer: Buffer, mime: string) {
+  const supabase = getSupabase();
   const imageId = newId("image");
   const ext = extForMime(mime) ?? ".bin";
-  const blob = await put(`uploads/${imageId}${ext}`, buffer, {
-    access: "public",
-    contentType: mime,
-  });
-  return { imageId, url: blob.url };
+  const path = `${imageId}${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, buffer, { contentType: mime, upsert: false });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(BUCKET).getPublicUrl(path);
+
+  return { imageId, url: publicUrl };
 }
 
 export async function readUpload(
   imageId: string
 ): Promise<{ buffer: Buffer; mime: string } | null> {
   if (!isValidId(imageId)) return null;
+  const supabase = getSupabase();
   for (const ext of [".jpg", ".png", ".webp", ".bin"]) {
-    try {
-      const blob = await blobHead(`uploads/${imageId}${ext}`);
-      if (!blob) continue;
-      const res = await fetch(blob.url);
-      if (!res.ok) continue;
-      const buffer = Buffer.from(await res.arrayBuffer());
-      const mime = blob.contentType ?? EXT_TO_MIME[ext] ?? "application/octet-stream";
-      return { buffer, mime };
-    } catch {
-      /* try next extension */
-    }
+    const path = `${imageId}${ext}`;
+    const { data, error } = await supabase.storage.from(BUCKET).download(path);
+    if (error || !data) continue;
+    const mime = EXT_TO_MIME[ext] ?? "application/octet-stream";
+    return { buffer: Buffer.from(await data.arrayBuffer()), mime };
   }
   return null;
 }
 
-/* ---------- 风格资料库（Upstash Redis） ---------- */
-
-async function readAll(): Promise<StyleResult[]> {
-  const r = redis();
-  const raw = await r.get<string>(STYLES_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    // 数据损坏：备份后返回空
-    const backup = `${STYLES_KEY}:backup:${Date.now()}`;
-    await r.set(backup, raw, { ex: 86400 * 30 }); // 保留 30 天
-    console.error(`styles 数据解析失败，已备份到 ${backup}`);
-    throw err;
-  }
-}
-
-async function writeAll(styles: StyleResult[]) {
-  await redis().set(STYLES_KEY, JSON.stringify(styles));
-}
+/* ---------- 风格资料库（Supabase PostgreSQL） ---------- */
 
 export async function listStyles(): Promise<StyleResult[]> {
-  const all = await readAll();
-  return all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("styles")
+    .select("data")
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row: { data: StyleResult }) => row.data);
 }
 
 export async function getStyle(styleId: string): Promise<StyleResult | null> {
-  return (await readAll()).find((s) => s.styleId === styleId) ?? null;
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("styles")
+    .select("data")
+    .eq("style_id", styleId)
+    .single();
+
+  if (error || !data) return null;
+  return (data as { data: StyleResult }).data;
 }
 
 export async function createStyle(
-  data: Omit<StyleResult, "styleId" | "version" | "createdAt" | "updatedAt">
+  input: Omit<StyleResult, "styleId" | "version" | "createdAt" | "updatedAt">
 ): Promise<StyleResult> {
-  return withLock(async () => {
-    const now = new Date().toISOString();
-    const style: StyleResult = {
-      ...data,
-      styleId: newId("style"),
-      version: 1,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const all = await readAll();
-    all.push(style);
-    await writeAll(all);
-    return style;
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+  const style: StyleResult = {
+    ...input,
+    styleId: newId("style"),
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const { error } = await supabase.from("styles").insert({
+    style_id: style.styleId,
+    data: style,
+    created_at: now,
+    updated_at: now,
   });
+
+  if (error) throw error;
+  return style;
 }
 
 export async function updateStyle(
   styleId: string,
   patch: Partial<StyleResult>
 ): Promise<StyleResult | null> {
-  return withLock(async () => {
-    const all = await readAll();
-    const idx = all.findIndex((s) => s.styleId === styleId);
-    if (idx === -1) return null;
-    const prev = all[idx];
-    all[idx] = {
-      ...prev,
-      ...patch,
-      styleId: prev.styleId,
-      version: prev.version + 1,
-      createdAt: prev.createdAt,
-      updatedAt: new Date().toISOString(),
-    };
-    await writeAll(all);
-    return all[idx];
-  });
+  const supabase = getSupabase();
+  const current = await getStyle(styleId);
+  if (!current) return null;
+
+  const now = new Date().toISOString();
+  const merged: StyleResult = {
+    ...current,
+    ...patch,
+    styleId: current.styleId,
+    version: current.version + 1,
+    createdAt: current.createdAt,
+    updatedAt: now,
+  };
+
+  const { error } = await supabase
+    .from("styles")
+    .update({ data: merged, updated_at: now })
+    .eq("style_id", styleId);
+
+  if (error) throw error;
+  return merged;
 }
 
 export async function deleteStyle(styleId: string): Promise<boolean> {
-  return withLock(async () => {
-    const all = await readAll();
-    const next = all.filter((s) => s.styleId !== styleId);
-    if (next.length === all.length) return false;
-    await writeAll(next);
-    return true;
-  });
+  const supabase = getSupabase();
+  const { error, count } = await supabase
+    .from("styles")
+    .delete({ count: "exact" })
+    .eq("style_id", styleId);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }
