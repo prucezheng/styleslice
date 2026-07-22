@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StyleSlice Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage" aria-label="StyleSlice mobile card demo">
+      <section class="phone" aria-label="StyleSlice app preview">
+        <div class="sensor"></div>
+        <header class="topbar">
+          <button class="icon-button" aria-label="Account">
+            <span class="icon-person"></span>
+          </button>
+          <div class="brand-mark" aria-label="StyleSlice">
+            <span class="slice-glyph"></span>
+            <span>StyleSlice</span>
+          </div>
+          <button class="icon-button" aria-label="Notifications">
+            <span class="icon-bell"></span>
+          </button>
+        </header>
+
+        <section class="hero-copy" aria-label="Intro">
+          <p>参考图切成</p>
+          <h1>可复用<br />视觉语言</h1>
+        </section>
+
+        <section class="deck-zone" aria-label="Style card stack">
+          <div class="deck" id="deck">
+            <article class="slice-card card-6" data-index="5" data-style-id="neon">
+              <div class="mini-title">
+                <strong>Neon Console</strong>
+                <span>0.71</span>
+              </div>
+            </article>
+            <article class="slice-card card-5" data-index="4" data-style-id="paper">
+              <div class="mini-title">
+                <strong>Paper Studio</strong>
+                <span>0.83</span>
+              </div>
+            </article>
+            <article class="slice-card card-4" data-index="3" data-style-id="soft">
+              <div class="mini-title">
+                <strong>Soft Bazaar</strong>
+                <span>0.86</span>
+              </div>
+            </article>
+            <article class="slice-card card-3" data-index="2" data-style-id="glass">
+              <div class="mini-title">
+                <strong>Glass Index</strong>
+                <span>0.91</span>
+              </div>
+            </article>
+            <article class="slice-card card-2" data-index="1" data-style-id="mono">
+              <div class="mini-title">
+                <strong>Mono Utility</strong>
+                <span>0.94</span>
+              </div>
+            </article>
+            <article class="slice-card card-1 is-active" data-index="0" data-style-id="quiet">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">STYLE CARD</p>
+                  <h2>Quiet Interface</h2>
+                </div>
+                <span class="score">0.96</span>
+              </div>
+
+              <p class="description">
+                高留白、低饱和背景、硬朗信息层级与少量酸性色块，适合 AI 工具、资料库和编辑器界面。
+              </p>
+
+              <div class="swatches" aria-label="Palette">
+                <span style="--swatch: #161616"></span>
+                <span style="--swatch: #f4f1ea"></span>
+                <span style="--swatch: #d8ff66"></span>
+                <span style="--swatch: #62c7ff"></span>
+                <span style="--swatch: #ff8f70"></span>
+              </div>
+
+              <div class="type-sample">
+                <strong>Aa 风格规范</strong>
+                <span>Title 32 / Body 15 / Tag 11</span>
+              </div>
+
+              <div class="rule-strip">
+                <span>MD</span>
+                <span>证据帧</span>
+                <span>可编辑</span>
+              </div>
+
+              <div class="gesture-hint" aria-hidden="true">
+                <span></span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="action-row" aria-label="Actions">
+          <button class="primary-action" id="nextCard">切下一张</button>
+          <button class="secondary-action" id="explodeDeck">展开</button>
+        </section>
+
+        <nav class="tabbar" aria-label="Main navigation">
+          <button class="tab is-current" aria-label="Home"><span class="home-icon"></span><b>Home</b></button>
+          <button class="tab" aria-label="Library"><span class="square-icon"></span></button>
+          <button class="tab" aria-label="Analyze"><span class="wave-icon"></span></button>
+          <button class="tab" aria-label="Settings"><span class="gear-icon"></span></button>
+        </nav>
+      </section>
+
+      <aside class="notes" aria-label="Implementation notes">
+        <p class="notes-kicker">Motion estimate</p>
+        <h2>卡组动效：中等难度</h2>
+        <p>
+          这个效果主要由 2D transform、层级排序、阴影和手势阈值组成，不需要 3D 引擎。MVP 可先用 CSS + 少量 JS 完成。
+        </p>
+        <div class="estimate-grid">
+          <span>静态组件</span><strong>0.5-1 天</strong>
+          <span>点击切换</span><strong>1 天</strong>
+          <span>拖拽手势</span><strong>1-2 天</strong>
+          <span>接真实数据</span><strong>2-4 天</strong>
+        </div>
+      </aside>
+    </main>
+    <script src="./script.js"></script>
+  </body>
+</html>

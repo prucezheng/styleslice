@@ -29,6 +29,7 @@ apikey.txt
 # Logs
 *.log
 npm-debug.log*
+app/.npm-cache/
 
 # Next.js
 .next/

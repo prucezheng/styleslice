@@ -3,7 +3,7 @@
  *
  * 环境变量（.env.local）：
  *   ARK_API_KEY   火山方舟 API Key
- *   ARK_MODEL     模型或接入点 ID，如 doubao-seed-1-6-250615 / ep-xxxxxx
+ *   ARK_MODEL     模型或接入点 ID，如 doubao-seed-2-0-lite-260428 / ep-xxxxxx
  *
  * 未配置或调用失败时抛错，由调用方决定回退到 demo 数据。
  */

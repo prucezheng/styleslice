@@ -3,8 +3,9 @@
  * 入参：{ imageIds: string[], primaryImageIds?: string[], demo?: boolean }
  * 返回：StyleAnalysis + markdown + fallback 标记
  *
- * 兜底策略：demo=true、DEMO_MODE=1、未配置 Key、AI 调用失败 → 返回演示数据，
- * 保证演示链路永远可走通（fallback: true 时前端可提示）。
+ * 兜底策略：只有 demo=true 或 DEMO_MODE=1 时返回演示数据。
+ * 正常用户分析必须来自 Ark 视觉模型；配置缺失或 AI 调用失败时返回错误，
+ * 避免把固定 demo 结果误保存为真实分析。
  */
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImages } from "@/lib/doubao";
@@ -56,20 +57,20 @@ export async function POST(req: NextRequest) {
       .map((pid) => imageIds.indexOf(pid) + 1)
       .filter((i) => i > 0);
     if (!process.env.ARK_API_KEY || !process.env.ARK_MODEL) {
-      analysis = DEMO_ANALYSIS;
-      fallback = true;
-      fallbackReason = "missing_config";
-    } else {
-      try {
-        // 只有模型调用失败才回退演示数据
-        analysis = await analyzeImages(images, primaryIndexes);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[analyze] AI 调用失败，回退演示数据：", message);
-        analysis = DEMO_ANALYSIS;
-        fallback = true;
-        fallbackReason = `ai_error: ${message.slice(0, 200)}`;
-      }
+      return NextResponse.json(
+        { error: "未配置 ARK_API_KEY 或 ARK_MODEL，无法进行真实图片分析" },
+        { status: 503 }
+      );
+    }
+    try {
+      analysis = await analyzeImages(images, primaryIndexes);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[analyze] AI 调用失败：", message);
+      return NextResponse.json(
+        { error: "AI 视觉分析失败", detail: message.slice(0, 500) },
+        { status: 502 }
+      );
     }
   }
 

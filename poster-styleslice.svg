@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="420mm" viewBox="0 0 297 420" role="img" aria-labelledby="title desc">
+  <title id="title">风格切片 styleslice. 海报</title>
+  <desc id="desc">A3 portrait poster for StyleSlice, showing a reference image being sliced into reusable visual language: palette, type, components, evidence, and markdown.</desc>
+  <defs>
+    <style>
+      :root {
+        --paper: #fbfaf2;
+        --ink: #151515;
+        --soft-ink: #55534d;
+        --line: #151515;
+        --green: #1fc26b;
+        --green-soft: #dbf6e6;
+        --cream: #fffdf7;
+      }
+
+      .bg { fill: var(--paper); }
+      .ink { fill: var(--ink); }
+      .muted { fill: var(--soft-ink); }
+      .green { fill: var(--green); }
+      .green-soft { fill: var(--green-soft); }
+      .cream { fill: var(--cream); }
+      .line {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .thin {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 0.78;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .green-line {
+        fill: none;
+        stroke: var(--green);
+        stroke-width: 1.25;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .dash {
+        stroke-dasharray: 2.4 3.8;
+      }
+      .title-cn {
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+      .title-en {
+        font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+      .caption {
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+        font-size: 6.3px;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+      .caption-en {
+        font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+        font-size: 5px;
+        font-weight: 600;
+        letter-spacing: 0.45px;
+      }
+      .small {
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+        font-size: 4.6px;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+      .micro {
+        font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+        font-size: 3.5px;
+        font-weight: 700;
+        letter-spacing: 0.35px;
+      }
+      .index {
+        font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+        font-size: 7px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+    </style>
+  </defs>
+
+  <rect class="bg" width="297" height="420"/>
+
+  <g transform="translate(31 39)">
+    <circle class="green" cx="3.2" cy="7.5" r="3.2"/>
+    <text class="title-cn ink" x="13" y="16">风格切片</text>
+    <text class="title-en ink" x="14" y="31">styleslice.</text>
+  </g>
+
+  <text class="caption muted" x="33" y="88">把一张参考图，拆成可复用的视觉语言。</text>
+  <text class="caption-en muted" x="33" y="99">REFERENCE IMAGE  →  STYLE RULES  →  EDITABLE SPEC</text>
+
+  <g transform="translate(34 128)">
+    <g aria-label="reference image">
+      <rect class="cream line" x="0" y="23" width="72" height="92" rx="4"/>
+      <rect class="thin" x="7" y="32" width="58" height="58" rx="2.8"/>
+      <circle class="thin" cx="54" cy="42" r="5.5"/>
+      <path class="thin" d="M11 82 C20 66, 26 67, 33 77 C39 64, 46 58, 61 84"/>
+      <path class="green-line" d="M12 100 H37"/>
+      <path class="thin" d="M45 100 H61"/>
+      <text class="small muted" x="9" y="112">参考图</text>
+    </g>
+
+    <g aria-label="slice action">
+      <path class="green-line dash" d="M96 10 C89 38, 86 68, 94 123"/>
+      <path class="line" d="M90 16 L109 34"/>
+      <path class="line" d="M101 17 L106 22"/>
+      <path class="line" d="M107 34 L95 122"/>
+      <path class="green-line" d="M83 55 L112 47"/>
+      <path class="green-line" d="M83 76 L113 67"/>
+      <path class="green-line" d="M86 96 L109 90"/>
+      <text class="small muted" x="82" y="139">切片</text>
+    </g>
+
+    <g aria-label="style output" transform="translate(134 0)">
+      <rect class="cream line" x="0" y="14" width="92" height="112" rx="4"/>
+      <path class="thin" d="M10 32 H43"/>
+      <path class="thin" d="M10 41 H34"/>
+      <text class="micro muted" x="62" y="34">0.96</text>
+
+      <g transform="translate(10 54)">
+        <circle class="ink" cx="4" cy="4" r="4"/>
+        <circle class="green" cx="17" cy="4" r="4"/>
+        <circle class="green-soft" cx="30" cy="4" r="4"/>
+        <circle fill="#f5d37a" cx="43" cy="4" r="4"/>
+      </g>
+
+      <g transform="translate(10 75)">
+        <rect class="thin" x="0" y="0" width="21" height="20" rx="2"/>
+        <text class="index ink" x="5" y="13">Aa</text>
+        <path class="thin" d="M32 3 H72"/>
+        <path class="thin" d="M32 10 H62"/>
+        <path class="thin" d="M32 17 H68"/>
+      </g>
+
+      <g transform="translate(10 106)">
+        <rect class="thin" x="0" y="0" width="15" height="8" rx="1.5"/>
+        <rect class="thin" x="21" y="0" width="15" height="8" rx="1.5"/>
+        <rect class="thin" x="42" y="0" width="15" height="8" rx="1.5"/>
+        <text class="micro muted" x="65" y="6">MD</text>
+      </g>
+      <text class="small muted" x="0" y="139">视觉规范</text>
+    </g>
+  </g>
+
+  <g transform="translate(41 291)">
+    <path class="thin" d="M0 0 H214"/>
+    <g transform="translate(0 22)">
+      <circle class="green-soft" cx="10" cy="10" r="10"/>
+      <path class="line" d="M6 10 H14 M10 6 V14"/>
+      <text class="caption ink" x="28" y="7">色彩 / 字体 / 组件</text>
+      <text class="small muted" x="28" y="18">从参考图提取风格参数</text>
+    </g>
+    <g transform="translate(0 62)">
+      <circle class="green-soft" cx="10" cy="10" r="10"/>
+      <path class="line" d="M5.5 9.5 C8 6, 13 6, 15 10 C13 14, 8 14, 5.5 9.5 Z"/>
+      <circle class="ink" cx="10.2" cy="10" r="1.7"/>
+      <text class="caption ink" x="28" y="7">证据帧 / 相似度</text>
+      <text class="small muted" x="28" y="18">让每条风格结论可回看</text>
+    </g>
+    <g transform="translate(0 102)">
+      <circle class="green-soft" cx="10" cy="10" r="10"/>
+      <path class="line" d="M5 6 H15 V15 H5 Z M7 9 H13 M7 12 H11"/>
+      <text class="caption ink" x="28" y="7">可编辑 MD 规范</text>
+      <text class="small muted" x="28" y="18">直接交给设计、产品和前端使用</text>
+    </g>
+  </g>
+
+  <g transform="translate(210 340)">
+    <path class="line" d="M0 0 C12 -8, 24 -6, 32 4 C39 13, 36 27, 24 33 C12 40, -2 32, -4 19"/>
+    <path class="green-line" d="M9 14 C15 8, 24 9, 28 16"/>
+    <path class="line" d="M12 19 H29"/>
+    <path class="line" d="M13 24 H24"/>
+  </g>
+
+  <text class="caption-en muted" x="33" y="390">STYLESLICE / VISUAL LANGUAGE EXTRACTION</text>
+  <text class="small muted" x="33" y="402">297 × 420 mm</text>
+</svg>

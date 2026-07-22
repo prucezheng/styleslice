@@ -1,0 +1,6 @@
+interface:
+  display_name: "StyleSlice 风格提取与色卡"
+  short_description: "从视觉参考提取结构化规范，并生成一致的 Style Card"
+  default_prompt: "使用 $styleslice 分析我的视觉参考，并从同一份风格数据生成 Style Card。"
+policy:
+  allow_implicit_invocation: true
