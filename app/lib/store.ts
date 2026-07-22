@@ -1,74 +1,98 @@
 /**
- * 极简 JSON 文件存储（MVP 单用户，无需数据库）
- * 数据目录：app/data/
- *   - styles.json      风格资料库
- *   - uploads/         上传的原始图片
+ * Vercel 存储层：Vercel Blob（图片） + Upstash Redis（资料库）
+ *
+ * 环境变量：
+ *   BLOB_READ_WRITE_TOKEN   Vercel Blob 读写令牌（集成自动注入）
+ *   KV_URL / KV_REST_API_URL / KV_REST_API_TOKEN   Upstash Redis 连接信息
+ *
+ * 本地开发：npx vercel env pull 拉取环境变量
  */
-import { promises as fs } from "fs";
-import path from "path";
+
+import { put, del as blobDel, head as blobHead } from "@vercel/blob";
+import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 import type { StyleResult } from "./schema";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-const STYLES_FILE = path.join(DATA_DIR, "styles.json");
+/* ---------- Redis 客户端（延迟初始化） ---------- */
 
-async function ensureDirs() {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+let _redis: Redis | null = null;
+
+function redis(): Redis {
+  if (!_redis) {
+    const url = process.env.KV_REST_API_URL ?? process.env.KV_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) {
+      throw new Error("未配置 KV_REST_API_URL 或 KV_REST_API_TOKEN");
+    }
+    _redis = new Redis({ url, token });
+  }
+  return _redis;
 }
 
-/* ---------- 简易写锁（防止并发读写覆盖） ---------- */
+const STYLES_KEY = "styleslice:styles";
+const STYLES_LOCK_KEY = "styleslice:styles:lock";
 
-let writeQueue: Promise<void> = Promise.resolve();
+/* ---------- 简易 Redis 分布式锁 ---------- */
 
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    writeQueue = writeQueue.then(fn).then(resolve, reject);
-  });
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const r = redis();
+  const lockValue = crypto.randomBytes(8).toString("hex");
+  for (let i = 0; i < 30; i++) {
+    // NX: 仅当 key 不存在时 set；EX: 过期避免死锁
+    const acquired = await r.set(STYLES_LOCK_KEY, lockValue, { nx: true, ex: 10 });
+    if (acquired === "OK") break;
+    await new Promise((r) => setTimeout(r, 200 + Math.random() * 300));
+  }
+  try {
+    return await fn();
+  } finally {
+    // 仅释放自己持有的锁
+    const current = await r.get(STYLES_LOCK_KEY);
+    if (current === lockValue) {
+      await r.del(STYLES_LOCK_KEY);
+    }
+  }
 }
+
+/* ---------- ID 工具 ---------- */
 
 export function newId(prefix: string) {
   return `${prefix}_${crypto.randomBytes(6).toString("hex")}`;
 }
 
-/* ---------- 上传图片 ---------- */
+const ID_PATTERN = /^[a-z]+_[0-9a-f]{12}$/;
 
-const EXT_MAP: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-};
-
-export function extForMime(mime: string): string | null {
-  return EXT_MAP[mime] ?? null;
+export function isValidId(id: string): boolean {
+  return typeof id === "string" && ID_PATTERN.test(id);
 }
 
-export async function saveUpload(buffer: Buffer, mime: string) {
-  await ensureDirs();
-  const imageId = newId("image");
-  const ext = extForMime(mime) ?? ".bin";
-  await fs.writeFile(path.join(UPLOAD_DIR, imageId + ext), buffer);
-  return { imageId, fileName: imageId + ext };
-}
+/* ---------- MIME 工具 ---------- */
 
 const EXT_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".webp": "image/webp",
-  ".bin": "application/octet-stream",
 };
 
-const ID_PATTERN = /^[a-z]+_[0-9a-f]{12}$/;
-
-/** 校验 ID 格式，防止路径穿越 / 越权读取 uploads 之外的文件 */
-export function isValidId(id: string): boolean {
-  return typeof id === "string" && ID_PATTERN.test(id);
+export function extForMime(mime: string): string | null {
+  const map: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+  };
+  return map[mime] ?? null;
 }
 
-/** 解析上传文件路径，并确认仍在 uploads 目录内 */
-function resolveUploadPath(fileName: string): string | null {
-  const resolved = path.resolve(UPLOAD_DIR, fileName);
-  return resolved.startsWith(path.resolve(UPLOAD_DIR) + path.sep) ? resolved : null;
+/* ---------- 图片上传（Vercel Blob） ---------- */
+
+export async function saveUpload(buffer: Buffer, mime: string) {
+  const imageId = newId("image");
+  const ext = extForMime(mime) ?? ".bin";
+  const blob = await put(`uploads/${imageId}${ext}`, buffer, {
+    access: "public",
+    contentType: mime,
+  });
+  return { imageId, url: blob.url };
 }
 
 export async function readUpload(
@@ -76,42 +100,40 @@ export async function readUpload(
 ): Promise<{ buffer: Buffer; mime: string } | null> {
   if (!isValidId(imageId)) return null;
   for (const ext of [".jpg", ".png", ".webp", ".bin"]) {
-    const filePath = resolveUploadPath(imageId + ext);
-    if (!filePath) continue;
     try {
-      const buffer = await fs.readFile(filePath);
-      return { buffer, mime: EXT_TO_MIME[ext] ?? "application/octet-stream" };
+      const blob = await blobHead(`uploads/${imageId}${ext}`);
+      if (!blob) continue;
+      const res = await fetch(blob.url);
+      if (!res.ok) continue;
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const mime = blob.contentType ?? EXT_TO_MIME[ext] ?? "application/octet-stream";
+      return { buffer, mime };
     } catch {
-      /* try next */
+      /* try next extension */
     }
   }
   return null;
 }
 
-/* ---------- 风格资料库 ---------- */
+/* ---------- 风格资料库（Upstash Redis） ---------- */
 
 async function readAll(): Promise<StyleResult[]> {
-  let raw: string;
-  try {
-    raw = await fs.readFile(STYLES_FILE, "utf-8");
-  } catch (err) {
-    // 只有「文件不存在」视为空库；权限等错误向上抛，避免后续写入覆盖原数据
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw err;
-  }
+  const r = redis();
+  const raw = await r.get<string>(STYLES_KEY);
+  if (!raw) return [];
   try {
     return JSON.parse(raw);
   } catch (err) {
-    // styles.json 损坏：备份后抛错，防止静默覆盖
-    const backup = STYLES_FILE + ".broken-" + Date.now();
-    await fs.copyFile(STYLES_FILE, backup).catch(() => {});
-    throw new Error(`styles.json 解析失败，已备份到 ${path.basename(backup)}`);
+    // 数据损坏：备份后返回空
+    const backup = `${STYLES_KEY}:backup:${Date.now()}`;
+    await r.set(backup, raw, { ex: 86400 * 30 }); // 保留 30 天
+    console.error(`styles 数据解析失败，已备份到 ${backup}`);
+    throw err;
   }
 }
 
 async function writeAll(styles: StyleResult[]) {
-  await ensureDirs();
-  await fs.writeFile(STYLES_FILE, JSON.stringify(styles, null, 2), "utf-8");
+  await redis().set(STYLES_KEY, JSON.stringify(styles));
 }
 
 export async function listStyles(): Promise<StyleResult[]> {

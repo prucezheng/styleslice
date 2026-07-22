@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
       continue;
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { imageId } = await saveUpload(buffer, file.type);
-    images.push({ imageId, name: file.name, size: file.size });
+    const { imageId, url } = await saveUpload(buffer, file.type);
+    images.push({ imageId, url, name: file.name, size: file.size });
   }
 
   // 全部失败时不应返回成功
