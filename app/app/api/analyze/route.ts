@@ -14,7 +14,7 @@ import { readUpload, isValidId } from "@/lib/store";
 import { DEMO_ANALYSIS } from "@/lib/demo";
 import type { StyleAnalysis } from "@/lib/schema";
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -68,7 +68,11 @@ export async function POST(req: NextRequest) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("[analyze] AI 调用失败：", message);
       return NextResponse.json(
-        { error: "AI 视觉分析失败", detail: message.slice(0, 500) },
+        {
+          error: "AI 视觉分析失败",
+          detail: message.slice(0, 500),
+          retryable: !/Ark API 错误 (400|401|403|404|422):/.test(message),
+        },
         { status: 502 }
       );
     }

@@ -31,12 +31,11 @@ Include:
 
 - style name and short summary;
 - 4–6 representative colors and HEX values;
-- heading, body, and label hierarchy samples without inventing a font family;
-- 1–3 short layout samples showing size, weight, spacing, or alignment;
+- 1–3 compact layout samples showing spacing, alignment, grid, or density;
 - a few line, radius, shadow, texture, or basic-form samples;
 - compact source, creation date, and version metadata.
 
-Keep the card's structure stable across styles. Make colors and typography dominant. Do not simulate a complete app or poster, and do not use the source image itself as the main visual.
+Keep the card's structure stable across styles. Make colors and functional visual tokens dominant. Do not simulate a complete app or poster, and do not use the source image itself as the main visual.
 
 ## UI design-system board
 
@@ -69,7 +68,7 @@ Choose a balanced, non-repetitive set:
 - 3–5 evidence-based Design Keywords;
 - compact product/style, source, date, and version metadata.
 
-Exclude typography specimens, `Aa`, Headline, Body, Label, font sections, and font names by default in this mode. Restore typography only on explicit request.
+Always exclude typography specimens, `Aa`, Headline, Body, Label, font sections, font names, font weights, and type scales. Do not restore typography in either card mode, even when it appears in a PRD or reference.
 
 Reject illustration-poster composition, doodles, collage, recognizable source subjects, decorative hero graphics, glassmorphism, 3D, gloss, heavy shadows, arbitrary gradients, copied source components, full app screens, and large explanatory text blocks.
 
@@ -79,7 +78,7 @@ Build prompts in this order:
 
 1. **Reference roles:** identify the layout controller and palette/keyword sources.
 2. **Extracted tokens:** list semantic roles and exact HEX values.
-3. **Fixed structure:** specify the selected mode, canvas, grid, modules, and typography rule.
+3. **Fixed structure:** specify the selected mode, canvas, grid, modules, and permanent typography exclusion.
 4. **Negative constraints:** list forbidden inherited forms and art treatments.
 
 Never rely only on phrases such as “like image 1”; describe each reference's permitted scope.
@@ -90,7 +89,7 @@ Verify at full resolution:
 
 - semantic colors, printed HEX values, and swatches agree;
 - tonal ramps stay within the correct hue families;
-- typography is present only in the mode that permits it;
+- no typography specimen, font name, type scale, `Aa`, Headline, Body, or Label module appears;
 - no source subject, logo, mascot, illustration, doodle, or composition is copied;
 - hierarchy, alignment, gutters, radii, and labels are consistent and legible;
 - samples are functional and do not become a full app screen;

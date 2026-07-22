@@ -140,3 +140,4 @@ curl -X DELETE ...                                  # DELETE 删除
 - **不编造**：字体无法识别时只说类别（如"高对比衬线体"），不确定项写入 `uncertainties`
 - **不照搬**：提取视觉规则，不复制原图内容/构图/具体品牌元素
 - **优先用户编辑**：用户手动修改过的字段覆盖 AI 原始输出
+- Do not claim exact color sampling or source attribution when the evidence does not support it. Never restore typography, even when a PRD or reference image contains it.

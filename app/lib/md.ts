@@ -1,6 +1,6 @@
 /**
  * JSON → 通用视觉语言规范 Markdown 渲染器
- * 固定 14 节结构（PRD 7.4），由代码渲染保证结构稳定，不让 AI 自由写 MD。
+ * 固定 13 节结构（排除 Typography），由代码渲染保证结构稳定，不让 AI 自由写 MD。
  */
 import type { StyleAnalysis, Rule } from "./schema";
 
@@ -61,51 +61,43 @@ ${a.summary}
 | --- | --- | --- | --- | --- | --- |
 ${colorLines}
 
-## 4. 字体气质、字重关系与排版层级
-
-- **字体类别**：${fmtRule(a.typography?.category)}
-- **字重关系**：${fmtRule(a.typography?.weightRelation)}
-- **字号层级**：${fmtRule(a.typography?.hierarchy)}
-- **行距与字距**：${fmtRule(a.typography?.spacing)}
-- **对齐方式**：${fmtRule(a.typography?.alignment)}
-
-## 5. 构图、网格、间距与留白
+## 4. 构图、网格、间距与留白
 
 - **信息密度**：${fmtRule(a.layout?.density)}
 - **留白**：${fmtRule(a.layout?.whitespace)}
 - **视觉重心**：${fmtRule(a.layout?.visualFocus)}
 - **网格与对称**：${fmtRule(a.layout?.grid)}
 
-## 6. 形状、轮廓、边框与圆角
+## 5. 形状、轮廓、边框与圆角
 
 - **圆角**：${fmtRule(a.shapes?.corners)}
 - **边框与线条**：${fmtRule(a.shapes?.borders)}
 - **形态语言**：${fmtRule(a.shapes?.form)}
 
-## 7. 图像、摄影或插画语言
+## 6. 图像、摄影或插画语言
 
 - **图像类型**：${fmtRule(a.imagery?.type)}
 - **裁切方式**：${fmtRule(a.imagery?.crop)}
 - **处理方式**：${fmtRule(a.imagery?.treatment)}
 
-## 8. 材质、纹理和装饰规则
+## 7. 材质、纹理和装饰规则
 
 - **阴影**：${fmtRule(a.effects?.shadow)}
 - **纹理与材质**：${fmtRule(a.effects?.texture)}
 
-## 9. 组件与版式母题
+## 8. 组件与版式母题
 
 ${(a.components ?? []).length > 0 ? a.components.map((c) => `- ${fmtRule(c)}`).join("\n") : "- （无明显重复组件）"}
 
-## 10. 必须保持的视觉特征
+## 9. 必须保持的视觉特征
 
 ${fmtList(a.mustKeep)}
 
-## 11. 明确禁止项
+## 10. 明确禁止项
 
 ${fmtList(a.avoid)}
 
-## 12. 提供给 AI 的通用执行规则
+## 11. 提供给 AI 的通用执行规则
 
 - 以上所有规则适用于任何设计载体；执行时优先保证「必须保持的视觉特征」。
 - 严格避免「明确禁止项」中列出的所有做法。
@@ -113,12 +105,12 @@ ${fmtList(a.avoid)}
 - 具体页面结构、文案与功能需求以用户当次任务描述为准，本规范不提供。
 - 不要复刻任何具体品牌的 Logo、角色或受保护的独特图形。
 
-## 13. 来源说明与置信度
+## 12. 来源说明与置信度
 
 - 本规范由参考图片分析生成；标注［推断］的规则为 AI 归纳，非图片中直接可见。
 - 置信度为「低」的规则建议人工确认后再使用。
 
-## 14. 不确定项
+## 13. 不确定项
 
 ${fmtList(a.uncertainties)}
 `;

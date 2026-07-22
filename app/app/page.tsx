@@ -13,12 +13,31 @@ interface ColorRule {
   evidenceImages: number[];
 }
 
+interface VisualRule {
+  value: string;
+  confidence: Confidence;
+}
+
 interface StyleResult {
   styleId: string;
   name: string;
   summary: string;
   keywords?: { word: string; meaning: string }[];
   colors?: ColorRule[];
+  layout?: {
+    density?: VisualRule;
+    whitespace?: VisualRule;
+    grid?: VisualRule;
+  };
+  shapes?: {
+    corners?: VisualRule;
+    borders?: VisualRule;
+    form?: VisualRule;
+  };
+  effects?: {
+    shadow?: VisualRule;
+    texture?: VisualRule;
+  };
   markdown: string;
   fallback?: boolean;
   fallbackReason?: string;
@@ -162,7 +181,10 @@ export default function Home() {
         body: JSON.stringify({ imageIds, primaryImageIds: [imageIds[0]] }),
       });
       const analysis = await analysisRes.json();
-      if (!analysisRes.ok) throw new Error(analysis.error ?? "风格分析失败");
+      if (!analysisRes.ok) {
+        const detail = typeof analysis.detail === "string" ? `：${analysis.detail}` : "";
+        throw new Error(`${analysis.error ?? "风格分析失败"}${detail}`);
+      }
       if (analysis.fallback) {
         throw new Error(`当前结果不是大模型真实分析：${analysis.fallbackReason ?? "fallback"}`);
       }
@@ -487,6 +509,25 @@ function DetailScreen({
         </div>
       </section>
 
+      <section className="detail-section">
+        <span className="section-label">STYLE SYSTEM · NO TYPOGRAPHY</span>
+        <div className="style-system-panel">
+          <div className="keyword-row">
+            {(style.keywords ?? []).slice(0, 5).map((keyword) => (
+              <span key={keyword.word}>{keyword.word}</span>
+            ))}
+          </div>
+          <div className="visual-rule-grid">
+            <VisualRuleCard label="GRID" value={style.layout?.grid?.value} />
+            <VisualRuleCard label="SPACE" value={style.layout?.whitespace?.value} />
+            <VisualRuleCard label="RADIUS" value={style.shapes?.corners?.value} />
+            <VisualRuleCard label="BORDER" value={style.shapes?.borders?.value} />
+            <VisualRuleCard label="SHADOW" value={style.effects?.shadow?.value} />
+            <VisualRuleCard label="TEXTURE" value={style.effects?.texture?.value} />
+          </div>
+        </div>
+      </section>
+
       <section className="detail-section attachments">
         <span className="section-label">ATTACHMENTS</span>
         <button className="attachment-file" type="button" onClick={onOpenMd}>
@@ -515,6 +556,15 @@ function DetailScreen({
         </button>
       </div>
     </div>
+  );
+}
+
+function VisualRuleCard({ label, value }: { label: string; value?: string }) {
+  return (
+    <article className="visual-rule-card">
+      <strong>{label}</strong>
+      <p>{value || "未识别"}</p>
+    </article>
   );
 }
 

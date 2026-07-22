@@ -27,14 +27,6 @@ export interface ColorRule {
   evidenceImages: number[];
 }
 
-export interface TypographySpec {
-  category: Rule; // 字体类别（不伪造具体字体名）
-  weightRelation: Rule; // 字重关系
-  hierarchy: Rule; // 字号层级
-  spacing: Rule; // 行距/字距
-  alignment: Rule; // 对齐方式
-}
-
 export interface LayoutSpec {
   density: Rule; // 信息密度
   whitespace: Rule; // 留白
@@ -65,7 +57,6 @@ export interface StyleAnalysis {
   summary: string; // 一句话风格定义
   keywords: { word: string; meaning: string }[]; // 3–5 个
   colors: ColorRule[]; // 4–6 个
-  typography: TypographySpec;
   layout: LayoutSpec;
   shapes: ShapeSpec;
   imagery: ImagerySpec;
@@ -104,13 +95,6 @@ export const ANALYSIS_JSON_TEMPLATE = `{
       "evidenceImages": [1]
     }
   ],
-  "typography": {
-    "category": { "value": "...", "confidence": "high|medium|low", "evidenceImages": [1], "sourceType": "direct|inferred" },
-    "weightRelation": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." },
-    "hierarchy": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." },
-    "spacing": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." },
-    "alignment": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." }
-  },
   "layout": {
     "density": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." },
     "whitespace": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." },
