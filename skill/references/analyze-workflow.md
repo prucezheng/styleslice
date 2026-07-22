@@ -1,68 +1,43 @@
-# StyleSlice Analysis Workflow
+# Analysis and Full Workflow
 
-Use the local StyleSlice Next.js service to turn one or more images into structured JSON and a 14-section visual-language Markdown document.
+Read this file only for `--mode analyze` or `--mode full`.
 
-## 1. Check prerequisites
+## Prerequisites
 
-Confirm the API is running:
+Run from a StyleSlice repository checkout. Confirm the local API is healthy:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/styles
 ```
 
-If the result is not `200`, start the app from the repository root:
+If it is not `200`, start the app from the repository root with `cd app && npm run dev`. Confirm `app/.env.local` contains both `ARK_API_KEY` and `ARK_MODEL`. Normal analysis returns an error when configuration or the visual-model request fails; it must never silently become demo data.
+
+## One-command workflows
+
+Use the same bundled Python runtime as the main skill.
 
 ```bash
-cd app && npm run dev
+# JSON + Markdown only
+<bundled-python> scripts/styleslice.py <image...> \
+  --mode analyze --output-dir <dir>
+
+# JSON + Markdown + token JSON + SVG + PNG
+<bundled-python> scripts/styleslice.py <image...> \
+  --mode full --output-dir <dir>
 ```
 
-Confirm `app/.env.local` contains `ARK_API_KEY` and `ARK_MODEL`. Missing configuration causes demo fallback data.
+Accept JPG, PNG, and WebP, at most 10 images and 20 MB per image. Upload order determines `evidenceImages`; the first image is the primary reference and the card color source.
 
-## 2. Upload images
+The wrapper uploads the images, calls `/api/analyze`, rejects fallback or typography-bearing responses, writes analysis JSON and Markdown, and passes the same analysis to the deterministic card renderer. Do not repeat those HTTP steps manually unless debugging the wrapper.
 
-```bash
-curl -s -X POST http://localhost:3000/api/upload \
-  -F "files=@<image-path>;type=image/jpeg"
-```
+## Validate
 
-Extract `images[].imageId` from the response. Supported formats are JPG, PNG, and WebP, up to 20 MB each.
+Require analysis fields `colors`, `layout`, `shapes`, `imagery`, `effects`, `components`, `mustKeep`, `avoid`, `uncertainties`, and `markdown`. Reject any `typography` field.
 
-For multiple images, add one `-F` entry per file. Preserve upload order because `evidenceImages` uses one-based image positions.
+For full mode, preserve this split of authority:
 
-## 3. Analyze
+- deterministic image sampling controls exact HEX values and proportions;
+- analysis JSON controls the style name, summary, matching color names, and keywords;
+- fixed code controls layout and component states.
 
-```bash
-curl -s -X POST http://localhost:3000/api/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"imageIds":["<imageId>"],"primaryImageIds":["<imageId>"]}' \
-  -o <name>-analysis.json
-```
-
-Allow at least 120 seconds. `primaryImageIds` is optional and marks the most important references.
-
-Inspect the response:
-
-- `fallback: false` means real AI analysis succeeded.
-- `fallback: true` means demo data was returned. Check `fallbackReason` for `missing_config`, `ai_error`, or `demo` and disclose it to the user.
-
-## 4. Extract Markdown
-
-```bash
-node -e "const fs=require('fs');const p='<name>-analysis.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));fs.writeFileSync('<name>-style.md',d.markdown,'utf8');console.log({name:d.name,fallback:d.fallback,chars:d.markdown.length})"
-```
-
-The Markdown contains 13 sections covering keywords, visual principles, color, layout, shapes, imagery, materials, components, must-keep rules, prohibited treatments, reusable AI instructions, evidence/confidence, and uncertainties. Typography is intentionally excluded.
-
-## 5. Validate and optionally save
-
-Confirm the JSON contains `colors`, `layout`, `shapes`, `imagery`, `effects`, `components`, `mustKeep`, `avoid`, `uncertainties`, and `markdown`, and does not contain `typography`.
-
-Save a successful analysis to the StyleSlice library when requested:
-
-```bash
-curl -s -X POST http://localhost:3000/api/styles \
-  -H "Content-Type: application/json" \
-  -d @<name>-analysis.json
-```
-
-Do not present fallback data as a real visual-model result. An invalid image ID must match `^[a-z]+_[0-9a-f]{12}$`; re-upload the source when necessary.
+Do not present demo or fallback data as real analysis. Do not save the result to the StyleSlice library unless the user explicitly requests persistence.

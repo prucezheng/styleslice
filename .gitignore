@@ -15,6 +15,7 @@ Thumbs.db
 # Build
 dist/
 build/
+outputs/
 *.exe
 *.dll
 *.so
@@ -46,3 +47,6 @@ app/data/
 
 # 本地产出物（海报大图等，不入库）
 outputs/
+# Python
+__pycache__/
+*.py[cod]
