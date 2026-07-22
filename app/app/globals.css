@@ -321,6 +321,9 @@ button {
   display: grid;
   place-items: end center;
   perspective: 900px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .slice-card {
@@ -331,6 +334,9 @@ button {
   --stack-z: 1;
   --card-radius: 20px 24px 18px 26px / 26px 18px 24px 16px;
   position: absolute;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   z-index: var(--stack-z);
   bottom: 82px;
   width: min(324px, 96%);

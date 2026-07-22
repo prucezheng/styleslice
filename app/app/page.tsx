@@ -253,9 +253,10 @@ export default function Home() {
     touchStartX.current = null;
     if (start === null) return;
     const end = event.changedTouches[0]?.clientX ?? start;
-    const delta = end - start;
-    if (Math.abs(delta) < 34) return;
-    moveStack(delta < 0 ? 1 : -1);
+    const deltaX = end - start;
+    if (Math.abs(deltaX) < 30) return;
+    event.preventDefault();
+    moveStack(deltaX < 0 ? 1 : -1);
   }
 
   return (
@@ -467,7 +468,11 @@ function ArchiveScreen({
   onTouchEnd: (event: TouchEvent) => void;
 }) {
   return (
-    <div className="screen archive-screen">
+    <div
+      className="screen archive-screen"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="archive-topline">
         <button type="button" onClick={onHome} aria-label="返回首页">←</button>
         <span>资料库</span>
