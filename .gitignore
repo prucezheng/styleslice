@@ -33,8 +33,11 @@ npm-debug.log*
 .next/
 out/
 
-# StyleSlice 运行时数据（上传图片与资料库）
+# StyleSlice 锟斤拷锟斤拷时锟斤拷锟捷ｏ拷锟较达拷图片锟斤拷锟斤拷锟较库）
 app/data/
 
-# TypeScript 增量编译缓存
+# Claude Code
+.claude/
+
+# TypeScript 锟斤拷锟斤拷锟斤拷锟诫缓锟斤拷
 *.tsbuildinfo
