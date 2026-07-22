@@ -3,14 +3,14 @@ import fs from "fs";
 import path from "path";
 
 const BASE = "http://localhost:3000";
-const ROOT = path.join(import.meta.dirname, "..");
+const DEMO_DIR = path.join(import.meta.dirname, "..", "demo");
 
 async function main() {
   // 1. 上传图片
   console.log("📤 上传图片...");
   const fd = new FormData();
   for (const name of ["test1.jpg", "test2.jpg", "test3.jpg"]) {
-    const buf = fs.readFileSync(path.join(ROOT, name));
+    const buf = fs.readFileSync(path.join(DEMO_DIR, name));
     fd.append("files", new Blob([buf], { type: "image/jpeg" }), name);
   }
   const up = await fetch(`${BASE}/api/upload`, { method: "POST", body: fd }).then(r => r.json());

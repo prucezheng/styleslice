@@ -43,3 +43,6 @@ app/data/
 
 # TypeScript 锟斤拷锟斤拷锟斤拷锟诫缓锟斤拷
 *.tsbuildinfo
+
+# 本地产出物（海报大图等，不入库）
+outputs/
