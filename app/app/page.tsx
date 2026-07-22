@@ -772,8 +772,8 @@ function styleBoardColors(style: StyleResult): BoardColor[] {
 function StyleCardBoard({ style, expanded = false }: { style: StyleResult; expanded?: boolean }) {
   const colors = styleBoardColors(style);
   const [primary, secondary, neutral, accent] = colors;
-  const keywords = (style.keywords ?? []).map((keyword) => keyword.word).slice(0, 5);
-  while (keywords.length < 5) keywords.push(["Warm", "Clear", "Optimistic", "Everyday", "Cooperative"][keywords.length]);
+  const keywords = (style.keywords ?? []).map((keyword) => keyword.word).slice(0, 4);
+  while (keywords.length < 4) keywords.push(["Warm", "Clear", "Balanced", "Everyday"][keywords.length]);
   const shades = (hex: string) => [0.86, 0.72, 0.56, 0.38, 0.2, 0, -0.16, -0.32].map((amount) => (
     amount >= 0 ? mixHex(hex, "#FFFFFF", amount) : mixHex(hex, "#111111", Math.abs(amount))
   ));
@@ -784,8 +784,12 @@ function StyleCardBoard({ style, expanded = false }: { style: StyleResult; expan
     "--board-accent": accent.hex,
   } as React.CSSProperties;
 
+  const keywordIcons = ["♡", "◉", "☼", "♧"];
+  const keywordColors = [primary.hex, secondary.hex, neutral.hex, accent.hex];
+
   return (
     <div className={`style-card-board ${expanded ? "is-expanded" : ""}`} style={boardStyle}>
+      {/* 1. Color System — left column */}
       <div className="board-token-column">
         {colors.map((color) => (
           <article className="board-panel board-token" key={color.role}>
@@ -807,96 +811,41 @@ function StyleCardBoard({ style, expanded = false }: { style: StyleResult; expan
         ))}
       </div>
 
-      <div className="board-module-grid">
+      {/* 2 & 3. Color Usage + Design Keywords — right column */}
+      <div className="board-right-column">
         <article className="board-panel board-usage">
           <h3>Color Usage</h3>
-          {colors.map((color) => (
-            <div className="board-usage-row" key={color.role}>
-              <strong>{color.proportion}%</strong>
-              <span><i style={{ width: `${Math.max(6, color.proportion)}%`, background: color.hex }} /></span>
-              <b style={{ background: color.hex }} />
-              <small>{color.label}</small>
-            </div>
-          ))}
-        </article>
-
-        <article className="board-panel board-buttons">
-          <h3>Button States</h3>
-          {[
-            ["Primary", primary.hex], ["Secondary", secondary.hex], ["Inverted", "#111111"],
-            ["Outlined", "transparent"], ["Disabled", "#E7E8EA"],
-          ].map(([label, color]) => (
-            <div className={`board-button-row is-${label.toLowerCase()}`} key={label}>
-              <strong>{label}</strong>
-              {["Default", "Hover", "Pressed"].map((state, index) => (
-                <span key={state}>
-                  <i style={{ background: color, opacity: index === 1 ? 0.82 : index === 2 ? 0.9 : 1 }} />
-                  <small>{state}</small>
-                </span>
-              ))}
-            </div>
-          ))}
-        </article>
-
-        <article className="board-panel board-inputs">
-          <h3>Input Field</h3>
-          {["Default", "Focus"].map((state) => (
-            <div key={state}>
-              <strong>{state}</strong>
-              <span className={state === "Focus" ? "is-focus" : ""}><i /></span>
-            </div>
-          ))}
-        </article>
-
-        <article className="board-panel board-navigation">
-          <h3>Navigation</h3>
-          <div>
-            {["⌂", "✓", "♙", "⚙"].map((icon, index) => (
-              <span className={index === 1 ? "is-active" : ""} key={icon}>
-                <i>{icon}</i><small>{["Home", "Tasks", "People", "Settings"][index]}</small>
-              </span>
+          <div className="board-usage-bar">
+            {colors.map((color) => (
+              <span key={color.role} style={{ flex: color.proportion, background: color.hex }} />
             ))}
           </div>
-        </article>
-
-        <article className="board-panel board-spacing">
-          <h3>Spacing Tokens</h3>
-          <div>
-            {[8, 16, 24, 32].map((value, index) => (
-              <span key={value}><strong>{value}</strong><i style={{ width: `${28 + index * 6}%` }} /><small>{value} px</small></span>
+          <div className="board-usage-legend">
+            {colors.map((color) => (
+              <div className="board-usage-row" key={color.role}>
+                <b style={{ background: color.hex }} />
+                <strong>{color.label}</strong>
+                <span>{color.proportion}%</span>
+              </div>
             ))}
           </div>
-        </article>
-
-        <article className="board-panel board-radius">
-          <h3>Radius &amp; Border</h3>
-          <div className="board-radius-body">
-            <section><strong>Radius</strong><div>{[4, 8, 12, 16].map((value) => <span key={value}><i style={{ borderRadius: value }} /><small>{value}</small></span>)}</div></section>
-            <section><strong>Border</strong><div>{[1, 2, 3, 4].map((value) => <span key={value}><i style={{ borderLeftWidth: value }} /><small>{value}<br />px</small></span>)}</div></section>
-          </div>
-        </article>
-
-        <article className="board-panel board-icons">
-          <h3>Icon Style</h3>
-          <div>{["▣", "☑", "♧", "◯", "◴"].map((icon, index) => <span className={index === 2 ? "is-accent" : ""} key={icon}>{icon}</span>)}</div>
-        </article>
-
-        <article className="board-panel board-status">
-          <h3>Status Colors</h3>
-          <div>{[["ⓘ", "Info"], ["✓", "Success"], ["△", "Warning"], ["×", "Error"]].map(([icon, label]) => <span key={label}><i>{icon}</i><small>{label}</small></span>)}</div>
         </article>
 
         <article className="board-panel board-keywords">
           <h3>Design Keywords</h3>
-          <div>{keywords.map((keyword, index) => <span key={`${keyword}-${index}`}><i>{["♡", "◉", "☼", "♨", "♧"][index]}</i><small>{keyword}</small></span>)}</div>
+          <div className="board-keywords-row">
+            {keywords.map((keyword, index) => (
+              <span key={`${keyword}-${index}`}>
+                <i style={{
+                  background: `color-mix(in srgb, ${keywordColors[index]} 14%, white)`,
+                  color: keywordColors[index],
+                }}>{keywordIcons[index]}</i>
+                <small>{keyword}</small>
+              </span>
+            ))}
+          </div>
         </article>
       </div>
-
-      <footer className="board-footer">
-        {[style.name, "StyleSlice", style.source?.imageIds?.[0] || "Source 01", style.createdAt?.slice(0, 10) || "—", `v${style.version || 1}.0`].map((item, index) => (
-          <span key={`${item}-${index}`}>{item}{index < 4 && <i />}</span>
-        ))}
-      </footer>
     </div>
   );
 }
