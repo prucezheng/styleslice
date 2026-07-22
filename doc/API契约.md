@@ -9,7 +9,7 @@
 
 - `Rule`：`{ value, confidence: high|medium|low, evidenceImages: number[], sourceType: direct|inferred, userEdited?, locked? }`
 - `ColorRule`：`{ name, hex, role: primary|secondary|background|accent, proportion, confidence, evidenceImages }`
-- `StyleAnalysis`：name / summary / keywords / colors / typography / layout / shapes / imagery / effects / components / mustKeep / avoid / uncertainties
+- `StyleAnalysis`：name / summary / keywords / colors / layout / shapes / imagery / effects / components / mustKeep / avoid / uncertainties（永久排除 typography）
 - `StyleResult` = StyleAnalysis + `{ styleId, source, markdown, version, createdAt, updatedAt }`
 
 `evidenceImages` 是图片序号（从 1 开始），按上传顺序对应。
@@ -38,8 +38,8 @@
 ```
 
 - 返回：`StyleAnalysis` + `markdown` + `source` + `fallback`
-- `fallback: true` 表示返回的是兜底演示数据（AI 未配置或调用失败），前端可提示"当前为演示数据"
-- 耗时较长（视觉模型），前端请设 ≥ 60s 超时并展示阶段进度
+- `fallback: true` 仅用于显式 `demo: true` 或 `DEMO_MODE=1`；真实分析失败时返回 502 与安全的 `detail`
+- 耗时较长（视觉模型），前端应展示阶段进度；服务端会对瞬时错误进行一次重试
 
 ### 3. 保存到资料库 `POST /api/styles`
 
@@ -66,6 +66,6 @@
 
 ## 前端建议
 
-- Style Card 直接由 `StyleResult` 渲染：colors → 色卡，typography → 字体层级示例，shapes/effects → 形态样本
+- Style Card 直接由 `StyleResult` 渲染：colors → 色卡，keywords/layout/shapes/effects → 视觉令牌与形态样本；不渲染 typography
 - 图片序号 → 实际图片：需要展示来源图时可另加 `GET /api/images/:imageId`（如需要告诉我，5 分钟补上）
 - 编辑保存时直接 PATCH 整个修改后的分析对象即可，MD 会同步

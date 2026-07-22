@@ -505,6 +505,53 @@ button {
   font: 500 11px/1.2 "Noto Serif SC", Georgia, serif;
 }
 
+.style-system-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-row span {
+  padding: 7px 10px;
+  border: 1px solid #111111;
+  border-radius: 999px;
+  background: #ffffff;
+  font: 800 10px/1 "Courier New", monospace;
+}
+
+.visual-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.visual-rule-card {
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid #111111;
+  background: #ffffff;
+}
+
+.visual-rule-card strong {
+  display: block;
+  color: var(--muted);
+  font: 800 10px/1 "Courier New", monospace;
+}
+
+.visual-rule-card p {
+  margin: 12px 0 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  font: 600 12px/1.45 "Noto Serif SC", Georgia, serif;
+}
+
 .attachment-file {
   min-height: 70px;
   display: grid;

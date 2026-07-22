@@ -51,11 +51,11 @@ Inspect the response:
 node -e "const fs=require('fs');const p='<name>-analysis.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));fs.writeFileSync('<name>-style.md',d.markdown,'utf8');console.log({name:d.name,fallback:d.fallback,chars:d.markdown.length})"
 ```
 
-The Markdown contains 14 sections covering keywords, visual principles, color, typography, layout, shapes, imagery, materials, components, must-keep rules, prohibited treatments, reusable AI instructions, evidence/confidence, and uncertainties.
+The Markdown contains 13 sections covering keywords, visual principles, color, layout, shapes, imagery, materials, components, must-keep rules, prohibited treatments, reusable AI instructions, evidence/confidence, and uncertainties. Typography is intentionally excluded.
 
 ## 5. Validate and optionally save
 
-Confirm the JSON contains `colors`, `typography`, `layout`, `shapes`, `imagery`, `effects`, `components`, `mustKeep`, `avoid`, `uncertainties`, and `markdown`.
+Confirm the JSON contains `colors`, `layout`, `shapes`, `imagery`, `effects`, `components`, `mustKeep`, `avoid`, `uncertainties`, and `markdown`, and does not contain `typography`.
 
 Save a successful analysis to the StyleSlice library when requested:
 

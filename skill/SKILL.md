@@ -34,7 +34,7 @@ Use the analysis JSON fields as the source for the card:
 
 - `name`, `summary`, and `keywords` define identity and concise metadata;
 - `colors` define semantic color names, roles, exact HEX values, and proportions;
-- `typography`, `layout`, `shapes`, and `effects` define visual samples;
+- `layout`, `shapes`, and `effects` define visual samples;
 - `mustKeep` and `avoid` become positive and negative constraints;
 - `uncertainties` prevent unsupported precision;
 - `source` and `version` provide provenance.
@@ -48,7 +48,8 @@ If a requested card conflicts with the JSON, prefer user-confirmed edits, then r
 Use for StyleSlice archive/detail views or when the user asks for the product's native card. Follow the repository PRD:
 
 - create a compact horizontal visual index rather than a full design-system page;
-- show style name, summary, 4–6 colors, typography relationships, a few shape/effect samples, source, date, and version;
+- show style name, summary, 4–6 colors, keywords, a few shape/effect samples, source, date, and version;
+- exclude all typography specimens, font names, and type-scale modules;
 - keep the information structure consistent across saved styles;
 - do not copy the source image as the main visual.
 
@@ -59,7 +60,7 @@ Use for “UI Style Card”, “Design Token Reference”, palette board, or a h
 - create a high-resolution 16:9, Figma-like modular page;
 - default to four semantic roles: Primary, Secondary, Neutral, and Accent;
 - include functional token and component-state modules;
-- exclude typography specimens by default, unless the user explicitly requests them;
+- exclude typography specimens, font names, and type-scale modules in every case;
 - extract only permitted visual qualities from source images, never their subjects or composition.
 
 Read and apply the detailed contract before generating either mode.
@@ -73,4 +74,4 @@ Read and apply the detailed contract before generating either mode.
 5. Edit a local defect while preserving correct regions; regenerate only when the overall grid or hierarchy fails.
 6. Return the rendered image, a direct download link, the palette used, and any important uncertainty.
 
-Do not claim exact font identification, exact color sampling, or source attribution when the evidence does not support it.
+Do not claim exact color sampling or source attribution when the evidence does not support it. Never restore typography, even when a PRD or reference image contains it.

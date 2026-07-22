@@ -7,12 +7,12 @@ import type { StyleAnalysis } from "./schema";
 export const DEMO_ANALYSIS: StyleAnalysis = {
   name: "暖调极简编辑风",
   summary:
-    "以暖白与陶土色为基底、衬线大标题与大量留白构成的编辑排版风格，气质安静、有纸感，强调文字层级而非装饰。",
+    "以暖白与陶土色为基底、大量留白与克制几何结构构成的编辑风格，气质安静、有纸感。",
   keywords: [
     { word: "纸感暖白", meaning: "背景为带暖调的米白（非纯白），模拟纸张底色，全画面占比最高" },
-    { word: "编辑排版", meaning: "类似杂志的网格与标题层级，大标题衬线体 + 小号无衬线正文的强对比" },
+    { word: "编辑网格", meaning: "类似杂志的清晰网格、分隔线与非对称留白关系" },
     { word: "克制用色", meaning: "全图仅 4 个色相，强调色陶土红只占约 5%，用于关键按钮与标记" },
-    { word: "呼吸留白", meaning: "模块间距约为正文字号的 4–6 倍，内容集中于画面中央 60% 区域" },
+    { word: "呼吸留白", meaning: "模块之间使用宽松且稳定的间隔，内容集中于画面中央 60% 区域" },
   ],
   colors: [
     { name: "纸感暖白", hex: "#F5F1EA", role: "background", proportion: "约 60%", confidence: "high", evidenceImages: [1, 2] },
@@ -20,16 +20,9 @@ export const DEMO_ANALYSIS: StyleAnalysis = {
     { name: "陶土红", hex: "#C4562F", role: "accent", proportion: "约 5%", confidence: "medium", evidenceImages: [1] },
     { name: "灰褐辅助", hex: "#8A8177", role: "secondary", proportion: "约 10%", confidence: "medium", evidenceImages: [2] },
   ],
-  typography: {
-    category: { value: "标题为高对比衬线体（具体字体待确认），正文为中性无衬线体", confidence: "high", evidenceImages: [1, 2], sourceType: "direct" },
-    weightRelation: { value: "标题 Regular/Medium 即可，靠字号而非字重制造层级；正文 Regular", confidence: "medium", evidenceImages: [1], sourceType: "inferred" },
-    hierarchy: { value: "标题 : 副标题 : 正文 ≈ 4 : 2 : 1，层级仅三级，不设第四级", confidence: "medium", evidenceImages: [1, 2], sourceType: "inferred" },
-    spacing: { value: "正文行距约为字号 1.6–1.8 倍；标题字距略收紧，正文默认", confidence: "medium", evidenceImages: [2], sourceType: "inferred" },
-    alignment: { value: "全部左对齐，不使用居中正文；标题可跨栏", confidence: "high", evidenceImages: [1, 2], sourceType: "direct" },
-  },
   layout: {
     density: { value: "低密度，单屏信息点不超过 3 个", confidence: "high", evidenceImages: [1, 2], sourceType: "direct" },
-    whitespace: { value: "模块间距约为正文字号 4–6 倍，页面四周留白 ≥ 内容区宽度的 20%", confidence: "medium", evidenceImages: [1], sourceType: "inferred" },
+    whitespace: { value: "模块间使用宽松间隔，页面四周留白 ≥ 内容区宽度的 20%", confidence: "medium", evidenceImages: [1], sourceType: "inferred" },
     visualFocus: { value: "视觉重心偏左上，符合阅读动线；大图不撑满，四周留边", confidence: "medium", evidenceImages: [2], sourceType: "inferred" },
     grid: { value: "12 栏网格，内容常占中间 8 栏，左右不对称留空", confidence: "low", evidenceImages: [1], sourceType: "inferred" },
   },
@@ -49,23 +42,21 @@ export const DEMO_ANALYSIS: StyleAnalysis = {
   },
   components: [
     { value: "大标题 + 细分隔线 + 两段正文的标题块，反复出现", confidence: "high", evidenceImages: [1, 2], sourceType: "direct" },
-    { value: "陶土红小标签（全大写、字距放宽）用于分类标记", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
+    { value: "陶土红小标签用于分类标记，保持紧凑矩形轮廓", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
   ],
   mustKeep: [
     "暖白背景 + 墨黑文字的高可读性对比",
-    "衬线标题与无衬线正文的搭配关系",
     "强调色仅用于 5% 以内的关键位置",
-    "左对齐与三级以内的字号层级",
+    "左对齐与低密度非对称网格",
   ],
   avoid: [
     "纯白 #FFFFFF 或纯黑 #000000",
     "高饱和强调色（亮蓝、荧光绿、紫红）",
     "大圆角（>8px）、气泡形组件、渐变背景",
     "玻璃拟态、厚重投影、多层卡片堆叠",
-    "居中排列的大段正文、超过三级的字号层级",
+    "大面积居中堆叠、过密的信息布局",
   ],
   uncertainties: [
-    "标题衬线体的具体字体无法从图片确认，建议用户指定（如思源宋体 / Noto Serif）",
     "网格栏数为推断，样本中无完整宽页面佐证",
   ],
 };

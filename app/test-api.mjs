@@ -16,7 +16,9 @@ const analysis = await fetch(`${BASE}/api/analyze`, {
 check("analyze 返回风格名称", analysis.name === "暖调极简编辑风");
 check("analyze 返回 4 个颜色", analysis.colors?.length === 4);
 check("analyze 标记 fallback", analysis.fallback === true);
-check("analyze 生成 MD（含禁止项章节）", analysis.markdown?.includes("## 11. 明确禁止项"));
+check("analyze 永久排除 typography", !("typography" in analysis));
+check("analyze 生成 13 节 MD（含禁止项章节）", analysis.markdown?.includes("## 10. 明确禁止项"));
+check("MD 不包含 Typography 章节", !analysis.markdown?.includes("字体气质"));
 
 // 2. 保存
 const saved = await fetch(`${BASE}/api/styles`, {
