@@ -1309,3 +1309,177 @@ button {
     padding-right: 144px;
   }
 }
+
+/* ---------- 简笔画等待覆盖层（半透明 + 手绘进度条） ---------- */
+
+.analyzing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(247, 247, 246, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.doodle-card {
+  position: relative;
+  width: min(320px, 100%);
+  padding: 30px 26px 22px;
+  border: 2.5px solid #111111;
+  /* 手绘感：四角不规则圆角 */
+  border-radius: 225px 18px 255px 18px / 18px 255px 18px 225px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 5px 6px 0 rgba(17, 17, 17, 0.85);
+  animation: doodle-wobble 3.2s ease-in-out infinite;
+  text-align: center;
+}
+
+@keyframes doodle-wobble {
+  0%, 100% { transform: rotate(-0.7deg); }
+  50% { transform: rotate(0.7deg); }
+}
+
+.doodle-pencil {
+  position: absolute;
+  top: -24px;
+  right: 18px;
+  font-size: 34px;
+  transform: rotate(18deg);
+  animation: doodle-pencil-write 1.4s ease-in-out infinite;
+}
+
+@keyframes doodle-pencil-write {
+  0%, 100% { transform: rotate(18deg) translate(0, 0); }
+  50% { transform: rotate(12deg) translate(-4px, 3px); }
+}
+
+.doodle-title {
+  display: block;
+  min-height: 30px;
+  font: 400 22px/1.35 var(--font-display);
+}
+
+.doodle-progress {
+  margin: 18px 4px 14px;
+  height: 22px;
+  border: 2px solid #111111;
+  border-radius: 255px 12px 225px 12px / 12px 225px 12px 255px;
+  background: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+
+.doodle-progress-fill {
+  height: 100%;
+  border-right: 2px solid #111111;
+  border-radius: 0 10px 10px 0;
+  /* 铅笔排线质感 + 流动动画 */
+  background: repeating-linear-gradient(
+    -55deg,
+    #111111 0px,
+    #111111 4px,
+    #f7f7f6 4px,
+    #f7f7f6 9px
+  );
+  background-size: 26px 100%;
+  animation: doodle-fill-flow 0.9s linear infinite;
+  transition: width 600ms var(--ease-smooth);
+}
+
+@keyframes doodle-fill-flow {
+  to { background-position: 26px 0; }
+}
+
+.doodle-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  font: 400 12px/1 var(--font-body);
+}
+
+.doodle-steps li.is-active {
+  color: var(--ink);
+  text-decoration: underline wavy #111111 1.5px;
+  text-underline-offset: 4px;
+}
+
+.doodle-steps li.is-done {
+  color: var(--accent-dark);
+}
+
+/* ---------- 提示词缩略展示 ---------- */
+
+.prompt-card {
+  position: relative;
+}
+
+.prompt-card.is-clamped p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.prompt-card.is-clamped .prompt-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(to bottom, rgba(255, 251, 235, 0), #fffbeb 82%);
+  pointer-events: none;
+}
+
+.prompt-toggle {
+  margin-top: 8px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1 var(--font-body);
+  cursor: pointer;
+}
+
+.prompt-toggle:hover {
+  color: var(--ink);
+}
+
+/* ---------- 堆叠文件夹：标签页文字 + 露出的纸张 ---------- */
+
+.folder-tab em {
+  position: absolute;
+  left: 16px;
+  top: 9px;
+  color: var(--muted);
+  font: 400 11px/1 var(--font-body);
+  font-style: normal;
+  letter-spacing: 1px;
+}
+
+.folder-paper {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: -12px;
+  z-index: 0;
+  height: 40px;
+  border: 1.5px solid #111111;
+  border-radius: 6px 7px 0 0;
+  background: #ffffff;
+}
+
+.folder-paper.paper-a {
+  transform: rotate(-2.4deg) translateX(-6px);
+}
+
+.folder-paper.paper-b {
+  top: -8px;
+  transform: rotate(1.8deg) translateX(5px);
+  background: #fbfaf7;
+}

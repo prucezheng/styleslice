@@ -295,6 +295,10 @@ export default function Home() {
         {view === "detail" && activeStyle && (
           <DetailScreen style={activeStyle} onBack={goArchive} />
         )}
+
+        {(stage === "uploading" || stage === "analyzing" || stage === "saving") && (
+          <AnalyzingOverlay stage={stage} />
+        )}
       </section>
     </main>
   );
@@ -395,6 +399,56 @@ function HomeScreen({
   );
 }
 
+/** 简笔画风格的等待覆盖层：半透明 + 手绘进度条 */
+function AnalyzingOverlay({ stage }: { stage: Stage }) {
+  const steps = [
+    { key: "uploading", label: "上传图片" },
+    { key: "analyzing", label: "AI 切片中" },
+    { key: "saving", label: "存入切片库" },
+  ];
+  const doodleHints = [
+    "正在辨认颜色…",
+    "观察构图与留白…",
+    "归纳视觉规则…",
+    "写下禁止项…",
+    "标注证据来源…",
+  ];
+  const [hintIndex, setHintIndex] = useState(0);
+
+  useEffect(() => {
+    if (stage !== "analyzing") return;
+    const timer = setInterval(() => setHintIndex((i) => (i + 1) % doodleHints.length), 2200);
+    return () => clearInterval(timer);
+  }, [stage]);
+
+  const activeIndex = Math.max(0, steps.findIndex((s) => s.key === stage));
+  const progress = Math.round(((activeIndex + 0.6) / steps.length) * 100);
+
+  return (
+    <div className="analyzing-overlay" role="status" aria-live="polite">
+      <div className="doodle-card">
+        <span className="doodle-pencil" aria-hidden="true">✎</span>
+        <strong className="doodle-title">
+          {stage === "analyzing" ? doodleHints[hintIndex] : steps[activeIndex].label + "…"}
+        </strong>
+        <div className="doodle-progress" aria-hidden="true">
+          <div className="doodle-progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+        <ol className="doodle-steps">
+          {steps.map((step, index) => (
+            <li
+              key={step.key}
+              className={index < activeIndex ? "is-done" : index === activeIndex ? "is-active" : ""}
+            >
+              {index < activeIndex ? "✓ " : ""}{step.label}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 function ArchiveScreen({
   styles,
   frontIndex,
@@ -467,7 +521,15 @@ function ArchiveScreen({
                   "--card-c": colors[2],
                 } as React.CSSProperties}
               >
-                <span className="folder-tab" aria-hidden="true" />
+                <span className="folder-tab" aria-hidden="true">
+                  <em>{`SLICE-${String(index + 1).padStart(2, "0")}`}</em>
+                </span>
+                {isFront && (
+                  <>
+                    <span className="folder-paper paper-a" aria-hidden="true" />
+                    <span className="folder-paper paper-b" aria-hidden="true" />
+                  </>
+                )}
                 <div className="folder-content">
                   {sourceImageId ? (
                     <img
@@ -512,8 +574,11 @@ function DetailScreen({
 }) {
   const [boardOpen, setBoardOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
   const paletteName = `${style.name || "styleslice"}_palette.json`.replace(/[\\/:*?"<>|]/g, "_");
   const promptText = style.prompt ?? style.markdown;
+  // 缩略展示：约 4 行以内无需展开按钮
+  const isLongPrompt = promptText.length > 180;
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(promptText);
@@ -554,9 +619,19 @@ function DetailScreen({
 
         <section className="detail-section prompt-section">
           <h2 className="section-label">AI 生图提示词</h2>
-          <div className="prompt-card">
+          <div className={`prompt-card ${!promptExpanded && isLongPrompt ? "is-clamped" : ""}`}>
             <p>{promptText}</p>
+            {!promptExpanded && isLongPrompt && <span className="prompt-fade" aria-hidden="true" />}
           </div>
+          {isLongPrompt && (
+            <button
+              className="prompt-toggle"
+              type="button"
+              onClick={() => setPromptExpanded((open) => !open)}
+            >
+              {promptExpanded ? "收起 ▲" : `展开全文（${Math.round(promptText.length / 100) * 100} 字）▼`}
+            </button>
+          )}
         </section>
 
         <div className="download-actions">
