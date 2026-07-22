@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Confidence = "high" | "medium" | "low";
 
@@ -64,15 +65,6 @@ const USER_ID = "SLICE";
 function formatBytes(size: number) {
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function roleName(role: ColorRule["role"]) {
-  return {
-    primary: "主色",
-    secondary: "辅助",
-    background: "背景",
-    accent: "强调",
-  }[role];
 }
 
 function colorAt(style: StyleResult, index: number, fallback: string) {
@@ -327,7 +319,7 @@ function HomeScreen({
   return (
     <div className="screen home-screen">
       <button className="identity-strip" type="button" onClick={onArchive} aria-label="打开资料库">
-        <span className="avatar-mark">新</span>
+        <span className="avatar-mark" aria-hidden="true">SS</span>
         <span className="brand-chip">NEWBORN CARE</span>
         <span className="user-id">{USER_ID}</span>
       </button>
@@ -362,7 +354,7 @@ function HomeScreen({
             </div>
           ) : (
             <div className="upload-empty">
-              <span>+</span>
+              <img className="upload-add-icon" src="/icons/add.png" alt="" aria-hidden="true" />
               <strong>Upload Reference Images</strong>
               <small>Drag and drop your journal sketches or inspiration here.</small>
             </div>
@@ -442,6 +434,7 @@ function ArchiveScreen({
               colorAt(style, 1, "#1e1b16"),
               colorAt(style, 2, "#c4562f"),
             ];
+            const sourceImageId = style.source?.primaryImageIds?.[0] ?? style.source?.imageIds?.[0];
             return (
               <button
                 className={`slice-card ${isFront ? "is-front" : ""}`}
@@ -459,20 +452,24 @@ function ArchiveScreen({
                   "--card-c": colors[2],
                 } as React.CSSProperties}
               >
-                <span className="slice-badge">StyleSlice</span>
-                {style.source?.imageIds?.[0] && (
-                  <div className="card-image-frame">
+                <span className="folder-tab" aria-hidden="true" />
+                <div className="folder-content">
+                  {sourceImageId ? (
                     <img
-                      src={`/api/images/${style.source!.imageIds[0]}`}
-                      alt={style.name}
+                      className="slice-source-image"
+                      src={`/api/images/${sourceImageId}`}
+                      alt={`${style.name} 原始参考图`}
                       loading="lazy"
                     />
-                  </div>
-                )}
-                <strong>{style.name}</strong>
-                <small>{style.summary}</small>
-                <div className="mini-palette">
-                  {colors.map((color) => <span key={color} style={{ background: color }} />)}
+                  ) : (
+                    <div className="slice-image-fallback" aria-label="暂无原始参考图">
+                      {colors.map((color) => <span key={color} style={{ background: color }} />)}
+                    </div>
+                  )}
+                  <footer className="slice-card-caption">
+                    <span>{style.name}</span>
+                    <i>OPEN ↗</i>
+                  </footer>
                 </div>
               </button>
             );
@@ -500,88 +497,270 @@ function DetailScreen({
   onBack: () => void;
   onOpenMd: () => void;
 }) {
+  const [boardOpen, setBoardOpen] = useState(false);
   const mdName = `${style.name || "styleslice"}_spec.md`.replace(/[\\/:*?"<>|]/g, "_");
   const paletteName = `${style.name || "styleslice"}_palette.json`.replace(/[\\/:*?"<>|]/g, "_");
 
   return (
     <div className="screen detail-screen">
-      <button className="back-link" type="button" onClick={onBack}>← BACK TO ARCHIVE</button>
+      <header className="detail-topbar">
+        <button className="back-link" type="button" onClick={onBack}>
+          <img src="/icons/back-arrow.svg" alt="" aria-hidden="true" />
+          <span>返回库</span>
+        </button>
+      </header>
 
-      <section className="summary-block">
-        <h1>{style.name}</h1>
-        <p>{style.summary}</p>
-        {style.fallback && <span className="fallback-pill">DEMO · {style.fallbackReason ?? "fallback"}</span>}
-      </section>
+      <main className="detail-content">
+        <section className="summary-block">
+          <h1>{style.name}</h1>
+          <p>{style.summary}</p>
+          {style.fallback && <span className="fallback-pill">DEMO · {style.fallbackReason ?? "fallback"}</span>}
+        </section>
 
-      <section className="detail-section">
-        <span className="section-label">COLOR PALETTE</span>
-        <div className="palette-panel">
-          {(style.colors ?? []).map((color) => (
-            <article className="color-tile" key={`${color.role}-${color.hex}`}>
-              <span style={{ background: color.hex }} />
-              <strong>{color.hex}</strong>
-              <small>{roleName(color.role)} · {color.proportion}</small>
-            </article>
-          ))}
+        <section className="detail-section palette-section">
+          <h2 className="section-label">色卡</h2>
+          <button
+            className="style-card-board-frame"
+            type="button"
+            onClick={() => setBoardOpen(true)}
+            aria-label="放大查看完整 Style Card"
+          >
+            <StyleCardBoard style={style} />
+            <span className="board-expand-hint">点击放大 ↗</span>
+          </button>
+        </section>
+
+        <section className="detail-section attachments">
+          <h2 className="section-label">文档</h2>
+          <button className="attachment-file" type="button" onClick={onOpenMd}>
+            <span className="file-icon">
+              <img src="/icons/document.png" alt="" aria-hidden="true" />
+            </span>
+            <div>
+              <strong>{mdName}</strong>
+              <small>{Math.max(1, Math.ceil(style.markdown.length / 1024))} KB · Markdown Document</small>
+            </div>
+          </button>
+        </section>
+
+        <div className="download-actions">
+          <button type="button" onClick={() => downloadText(mdName, style.markdown, "text/markdown;charset=utf-8")}>
+            <img src="/icons/download-document.png" alt="" aria-hidden="true" />
+            <span>下载 MD</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadText(
+              paletteName,
+              JSON.stringify(style.colors ?? [], null, 2),
+              "application/json;charset=utf-8"
+            )}
+          >
+            <img src="/icons/download-palette.png" alt="" aria-hidden="true" />
+            <span>下载色卡</span>
+          </button>
         </div>
-      </section>
+      </main>
 
-      <section className="detail-section">
-        <span className="section-label">STYLE SYSTEM · NO TYPOGRAPHY</span>
-        <div className="style-system-panel">
-          <div className="keyword-row">
-            {(style.keywords ?? []).slice(0, 5).map((keyword) => (
-              <span key={keyword.word}>{keyword.word}</span>
-            ))}
-          </div>
-          <div className="visual-rule-grid">
-            <VisualRuleCard label="GRID" value={style.layout?.grid?.value} />
-            <VisualRuleCard label="SPACE" value={style.layout?.whitespace?.value} />
-            <VisualRuleCard label="RADIUS" value={style.shapes?.corners?.value} />
-            <VisualRuleCard label="BORDER" value={style.shapes?.borders?.value} />
-            <VisualRuleCard label="SHADOW" value={style.effects?.shadow?.value} />
-            <VisualRuleCard label="TEXTURE" value={style.effects?.texture?.value} />
+      {boardOpen && createPortal((
+        <div className="board-lightbox" role="dialog" aria-modal="true" aria-label="完整 Style Card">
+          <button className="board-lightbox-close" type="button" onClick={() => setBoardOpen(false)}>
+            CLOSE ×
+          </button>
+          <div className="board-lightbox-canvas">
+            <StyleCardBoard style={style} expanded />
           </div>
         </div>
-      </section>
-
-      <section className="detail-section attachments">
-        <span className="section-label">ATTACHMENTS</span>
-        <button className="attachment-file" type="button" onClick={onOpenMd}>
-          <span className="file-icon">▣</span>
-          <div>
-            <strong>{mdName}</strong>
-            <small>{Math.ceil(style.markdown.length / 1024)} KB · Markdown Document</small>
-          </div>
-          <span className="open-label">OPEN</span>
-        </button>
-      </section>
-
-      <div className="download-actions">
-        <button type="button" onClick={() => downloadText(mdName, style.markdown, "text/markdown;charset=utf-8")}>
-          ▣ Download MD
-        </button>
-        <button
-          type="button"
-          onClick={() => downloadText(
-            paletteName,
-            JSON.stringify(style.colors ?? [], null, 2),
-            "application/json;charset=utf-8"
-          )}
-        >
-          ◌ Download Palette
-        </button>
-      </div>
+      ), document.body)}
     </div>
   );
 }
 
-function VisualRuleCard({ label, value }: { label: string; value?: string }) {
+type BoardRole = "primary" | "secondary" | "neutral" | "accent";
+
+interface BoardColor {
+  role: BoardRole;
+  label: string;
+  name: string;
+  hex: string;
+  proportion: number;
+}
+
+function normalizeHex(value: string | undefined, fallback: string) {
+  return /^#[0-9a-f]{6}$/i.test(value ?? "") ? (value as string).toUpperCase() : fallback;
+}
+
+function mixHex(base: string, target: string, amount: number) {
+  const parse = (value: string) => [1, 3, 5].map((index) => parseInt(value.slice(index, index + 2), 16));
+  const a = parse(base);
+  const b = parse(target);
+  return `#${a.map((value, index) => Math.round(value * (1 - amount) + b[index] * amount).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function percentage(value: string | undefined, fallback: number) {
+  const parsed = Number((value ?? "").match(/[\d.]+/)?.[0]);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function styleBoardColors(style: StyleResult): BoardColor[] {
+  const source = style.colors ?? [];
+  const used = new Set<ColorRule>();
+  const take = (roles: ColorRule["role"][], fallbackIndex: number) => {
+    const exact = source.find((color) => roles.includes(color.role) && !used.has(color));
+    const candidate = exact ?? source.find((color) => !used.has(color)) ?? source[fallbackIndex];
+    if (candidate) used.add(candidate);
+    return candidate;
+  };
+  const primary = take(["primary"], 0);
+  const secondary = take(["secondary"], 1);
+  const neutral = take(["background"], 2);
+  const accent = take(["accent"], 3);
+  const fallbacks = [
+    { hex: "#4AA384", name: "Leaf Green", proportion: 60 },
+    { hex: "#F5C95A", name: "Sunshine Yellow", proportion: 25 },
+    { hex: "#F8F3E5", name: "Warm Cream", proportion: 10 },
+    { hex: "#D94B45", name: "Coral Red", proportion: 5 },
+  ];
+  const candidates = [primary, secondary, neutral, accent];
+  const roles: BoardRole[] = ["primary", "secondary", "neutral", "accent"];
+  return roles.map((role, index) => ({
+    role,
+    label: role[0].toUpperCase() + role.slice(1),
+    name: candidates[index]?.name || fallbacks[index].name,
+    hex: normalizeHex(candidates[index]?.hex, fallbacks[index].hex),
+    proportion: percentage(candidates[index]?.proportion, fallbacks[index].proportion),
+  }));
+}
+
+function StyleCardBoard({ style, expanded = false }: { style: StyleResult; expanded?: boolean }) {
+  const colors = styleBoardColors(style);
+  const [primary, secondary, neutral, accent] = colors;
+  const keywords = (style.keywords ?? []).map((keyword) => keyword.word).slice(0, 5);
+  while (keywords.length < 5) keywords.push(["Warm", "Clear", "Optimistic", "Everyday", "Cooperative"][keywords.length]);
+  const shades = (hex: string) => [0.86, 0.72, 0.56, 0.38, 0.2, 0, -0.16, -0.32].map((amount) => (
+    amount >= 0 ? mixHex(hex, "#FFFFFF", amount) : mixHex(hex, "#111111", Math.abs(amount))
+  ));
+  const boardStyle = {
+    "--board-primary": primary.hex,
+    "--board-secondary": secondary.hex,
+    "--board-neutral": neutral.hex,
+    "--board-accent": accent.hex,
+  } as React.CSSProperties;
+
   return (
-    <article className="visual-rule-card">
-      <strong>{label}</strong>
-      <p>{value || "未识别"}</p>
-    </article>
+    <div className={`style-card-board ${expanded ? "is-expanded" : ""}`} style={boardStyle}>
+      <div className="board-token-column">
+        {colors.map((color) => (
+          <article className="board-panel board-token" key={color.role}>
+            <header>
+              <i style={{ background: color.hex }} />
+              <strong>{color.label} — {color.name}</strong>
+              <span>{color.hex}</span>
+            </header>
+            <div className="board-main-swatch" style={{ background: color.hex }} />
+            <div className="board-shade-row">
+              {shades(color.hex).map((shade, index) => (
+                <span key={shade}>
+                  <i style={{ background: shade }} />
+                  <small>{(index + 1) * 100}</small>
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="board-module-grid">
+        <article className="board-panel board-usage">
+          <h3>Color Usage</h3>
+          {colors.map((color) => (
+            <div className="board-usage-row" key={color.role}>
+              <strong>{color.proportion}%</strong>
+              <span><i style={{ width: `${Math.max(6, color.proportion)}%`, background: color.hex }} /></span>
+              <b style={{ background: color.hex }} />
+              <small>{color.label}</small>
+            </div>
+          ))}
+        </article>
+
+        <article className="board-panel board-buttons">
+          <h3>Button States</h3>
+          {[
+            ["Primary", primary.hex], ["Secondary", secondary.hex], ["Inverted", "#111111"],
+            ["Outlined", "transparent"], ["Disabled", "#E7E8EA"],
+          ].map(([label, color]) => (
+            <div className={`board-button-row is-${label.toLowerCase()}`} key={label}>
+              <strong>{label}</strong>
+              {["Default", "Hover", "Pressed"].map((state, index) => (
+                <span key={state}>
+                  <i style={{ background: color, opacity: index === 1 ? 0.82 : index === 2 ? 0.9 : 1 }} />
+                  <small>{state}</small>
+                </span>
+              ))}
+            </div>
+          ))}
+        </article>
+
+        <article className="board-panel board-inputs">
+          <h3>Input Field</h3>
+          {["Default", "Focus"].map((state) => (
+            <div key={state}>
+              <strong>{state}</strong>
+              <span className={state === "Focus" ? "is-focus" : ""}><i /></span>
+            </div>
+          ))}
+        </article>
+
+        <article className="board-panel board-navigation">
+          <h3>Navigation</h3>
+          <div>
+            {["⌂", "✓", "♙", "⚙"].map((icon, index) => (
+              <span className={index === 1 ? "is-active" : ""} key={icon}>
+                <i>{icon}</i><small>{["Home", "Tasks", "People", "Settings"][index]}</small>
+              </span>
+            ))}
+          </div>
+        </article>
+
+        <article className="board-panel board-spacing">
+          <h3>Spacing Tokens</h3>
+          <div>
+            {[8, 16, 24, 32].map((value, index) => (
+              <span key={value}><strong>{value}</strong><i style={{ width: `${28 + index * 6}%` }} /><small>{value} px</small></span>
+            ))}
+          </div>
+        </article>
+
+        <article className="board-panel board-radius">
+          <h3>Radius &amp; Border</h3>
+          <div className="board-radius-body">
+            <section><strong>Radius</strong><div>{[4, 8, 12, 16].map((value) => <span key={value}><i style={{ borderRadius: value }} /><small>{value}</small></span>)}</div></section>
+            <section><strong>Border</strong><div>{[1, 2, 3, 4].map((value) => <span key={value}><i style={{ borderLeftWidth: value }} /><small>{value}<br />px</small></span>)}</div></section>
+          </div>
+        </article>
+
+        <article className="board-panel board-icons">
+          <h3>Icon Style</h3>
+          <div>{["▣", "☑", "♧", "◯", "◴"].map((icon, index) => <span className={index === 2 ? "is-accent" : ""} key={icon}>{icon}</span>)}</div>
+        </article>
+
+        <article className="board-panel board-status">
+          <h3>Status Colors</h3>
+          <div>{[["ⓘ", "Info"], ["✓", "Success"], ["△", "Warning"], ["×", "Error"]].map(([icon, label]) => <span key={label}><i>{icon}</i><small>{label}</small></span>)}</div>
+        </article>
+
+        <article className="board-panel board-keywords">
+          <h3>Design Keywords</h3>
+          <div>{keywords.map((keyword, index) => <span key={`${keyword}-${index}`}><i>{["♡", "◉", "☼", "♨", "♧"][index]}</i><small>{keyword}</small></span>)}</div>
+        </article>
+      </div>
+
+      <footer className="board-footer">
+        {[style.name, "StyleSlice", style.source?.imageIds?.[0] || "Source 01", style.createdAt?.slice(0, 10) || "—", `v${style.version || 1}.0`].map((item, index) => (
+          <span key={`${item}-${index}`}>{item}{index < 4 && <i />}</span>
+        ))}
+      </footer>
+    </div>
   );
 }
 
