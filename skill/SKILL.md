@@ -1,76 +1,142 @@
 ---
 name: styleslice
-description: Analyze one or more visual-reference images into structured StyleSlice JSON and reusable visual-language Markdown, then generate a consistent Style Card from that shared source. Use when the user asks to analyze an image, extract a style, generate a style specification, create a 色卡 or Style Card, build a UI style guide or design-token board, or run the complete StyleSlice image-to-style workflow. Supports the Chinese triggers “分析这张图”, “提取风格”, “生成风格规范”, “切一下这张图”, and “生成色卡”.
+description: 上传设计参考图片 → AI 视觉分析 → 生成结构化 StyleSlice JSON + 14 节通用视觉语言规范 Markdown + Style Card。触发词：「分析这张图」「提取风格」「生成风格规范」「切一下这张图」「生成色卡」「styleslice」。
 ---
 
-# StyleSlice
+# StyleSlice 风格切片
 
-Turn visual evidence into reusable design rules, then render those same rules as a Style Card. Keep structured JSON as the single source of truth for both Markdown and visuals.
+上传设计参考图片，通过豆包视觉模型分析，将"这种感觉"转化为可复用的视觉语言规范。
 
-## Route the request
+核心输出：
+- **StyleAnalysis JSON** — 结构化风格数据（colors / typography / layout / shapes / imagery / effects / components / mustKeep / avoid / uncertainties）
+- **Markdown** — 14 节固定结构通用视觉语言规范
+- **Style Card** — 可视化色卡 + 字体层级样本
 
-Choose the smallest applicable workflow:
+## Web UI 操作（推荐）
 
-1. **Analyze only:** upload reference images and produce `{name}-analysis.json` plus `{name}-style.md`. Read [references/analyze-workflow.md](references/analyze-workflow.md).
-2. **Generate a card only:** use an existing PRD, StyleSlice JSON/Markdown, and any labeled reference images. Read [references/style-card-contract.md](references/style-card-contract.md).
-3. **Complete pipeline:** run analysis first, review its evidence and uncertainty, then generate the Style Card from the resulting JSON. Do not re-extract tokens during card generation unless the user explicitly changes them.
+前端已就绪，启动后通过浏览器完成全部操作：
 
-## Resolve input authority
+```bash
+cd app && npm run dev
+```
 
-Apply this priority order:
+打开 http://localhost:3000 ，四屏交互流程：
 
-1. Current explicit user instructions
-2. Current PRD or product requirements
-3. Existing StyleSlice JSON and user-confirmed edits
-4. Layout-reference image for structure and finish
-5. Visual-source image for palette, material impression, mood, and keywords
-6. Safe defaults in the relevant reference contract
+| 屏幕 | 功能 |
+|------|------|
+| **Home** | 拖拽/点击上传参考图片（支持多图），预览缩略图，点击「Start Analysis」 |
+| **Archive** | 资料库卡片堆叠浏览，滚轮/触摸滑动切换，点击打开详情 |
+| **Detail** | 风格名+摘要 + 色卡面板（含 hex / 角色 / 占比）+ MD 附件 + 下载 MD/Palette |
+| **Markdown** | 完整 Markdown 全文查看 + 浮动下载按钮 |
 
-Never let an older project or conversational memory override current inputs. Follow explicit attachment labels over attachment order. Ask only when ambiguity would materially change the result.
+流程：上传 → 分析（自动调用豆包 AI）→ 自动保存资料库 → 进入 Detail 页 → 下载 MD / 浏览资料库。
 
-## Preserve the shared data contract
+### Demo 模式
 
-Use the analysis JSON fields as the source for the card:
+在 `.env.local` 中设置 `DEMO_MODE=1` 或在分析时传 `demo: true`，可脱离 AI Key 使用演示数据走通全流程。
 
-- `name`, `summary`, and `keywords` define identity and concise metadata;
-- `colors` define semantic color names, roles, exact HEX values, and proportions;
-- `typography`, `layout`, `shapes`, and `effects` define visual samples;
-- `mustKeep` and `avoid` become positive and negative constraints;
-- `uncertainties` prevent unsupported precision;
-- `source` and `version` provide provenance.
+## API 直调（命令行/脚本用）
 
-If a requested card conflicts with the JSON, prefer user-confirmed edits, then report the divergence briefly. Never silently invent a second palette.
+前端不可用或需要批量处理时，直接调 API：
 
-## Select the Style Card mode
+### 1. 上传图片
 
-### Product library card
+```bash
+curl -s -X POST http://localhost:3000/api/upload \
+  -F "files=@image.jpg;type=image/jpeg"
+# → { "images": [{ "imageId": "image_xxx", "name": "image.jpg", "size": 182730 }] }
+```
 
-Use for StyleSlice archive/detail views or when the user asks for the product's native card. Follow the repository PRD:
+支持 JPG/PNG/WebP，单张 ≤ 20MB，一次 ≤ 10 张。
 
-- create a compact horizontal visual index rather than a full design-system page;
-- show style name, summary, 4–6 colors, typography relationships, a few shape/effect samples, source, date, and version;
-- keep the information structure consistent across saved styles;
-- do not copy the source image as the main visual.
+### 2. AI 分析
 
-### UI design-system board
+```bash
+curl -s -X POST http://localhost:3000/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"imageIds": ["image_xxx"], "primaryImageIds": ["image_xxx"]}' \
+  -o analysis.json
+```
 
-Use for “UI Style Card”, “Design Token Reference”, palette board, or a handoff artifact for designers/developers:
+耗时 30–90 秒（视觉模型），超时 ≥ 120s。返回 JSON 含 `markdown` 字段和 `fallback` 标记。
 
-- create a high-resolution 16:9, Figma-like modular page;
-- default to four semantic roles: Primary, Secondary, Neutral, and Accent;
-- include functional token and component-state modules;
-- exclude typography specimens by default, unless the user explicitly requests them;
-- extract only permitted visual qualities from source images, never their subjects or composition.
+### 3. 提取 Markdown
 
-Read and apply the detailed contract before generating either mode.
+```bash
+node -e "
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync('analysis.json', 'utf-8'));
+fs.writeFileSync('style.md', data.markdown, 'utf-8');
+console.log('Style:', data.name, '| Fallback:', data.fallback);
+"
+```
 
-## Generate and verify
+### 4. 保存到资料库（可选）
 
-1. Build a concise extraction brief from the authoritative inputs.
-2. State each reference image's role explicitly in the generation prompt.
-3. Use image generation when a rendered card is requested.
-4. Inspect the output at full resolution against the contract checklist.
-5. Edit a local defect while preserving correct regions; regenerate only when the overall grid or hierarchy fails.
-6. Return the rendered image, a direct download link, the palette used, and any important uncertainty.
+```bash
+curl -s -X POST http://localhost:3000/api/styles \
+  -H "Content-Type: application/json" \
+  -d @analysis.json
+# → 201，返回完整 StyleResult（含 styleId）
+```
 
-Do not claim exact font identification, exact color sampling, or source attribution when the evidence does not support it.
+### 5. 资料库 CRUD
+
+```bash
+curl http://localhost:3000/api/styles              # GET 列表
+curl http://localhost:3000/api/styles/{styleId}    # GET 详情
+curl -X PATCH ... -d '{ "name": "新名字" }'        # PATCH 更新（MD 自动重渲染）
+curl -X DELETE ...                                  # DELETE 删除
+```
+
+## 生成 Style Card
+
+分析完成后，可基于同一份 JSON 生成可视化 Style Card：
+
+### 产品资料库卡片（Detail 页）
+
+前端 `DetailScreen` 已包含：色卡面板（可下载 Palette JSON）+ MD 附件（可下载 .md）+ 风格名/摘要。无需额外操作。
+
+### UI Design Token Board
+
+当用户需要设计系统级别的色卡/Token 参考板时：
+- 创建 16:9 高分辨率 Figma 式模块化页面
+- 四色语义角色：Primary / Secondary / Neutral / Accent
+- 包含 token 命名、组件状态示例
+- 默认不包含字体样本（除非用户明确要求）
+- 从 JSON 的 `colors` 提取 hex/role/proportion，`shapes` 提取圆角/边框，`effects` 提取阴影/纹理
+
+## 数据契约
+
+分析 JSON 字段作为 Style Card 的唯一数据源：
+
+| 字段 | 用途 |
+|------|------|
+| `name` / `summary` / `keywords` | 风格标识和一句话定义 |
+| `colors[]` | { name, hex, role, proportion, confidence } — 用于色卡 |
+| `typography` | 字体类别/字重/层级/间距/对齐 — 用于字体样本 |
+| `layout` | 密度/留白/视觉重心/网格 |
+| `shapes` | 圆角/边框/形态语言 |
+| `imagery` | 图像类型/裁切/处理 |
+| `effects` | 阴影/纹理 |
+| `components[]` | 反复出现的版式母题 |
+| `mustKeep[]` / `avoid[]` | 正向/负向约束 |
+| `uncertainties[]` | 不确定项，避免过度精确 |
+| `source.imageIds` | 证据溯源 |
+
+## 异常处理
+
+| 情况 | Web UI 表现 | API 表现 |
+|------|------------|---------|
+| 服务器未启动 | 无法访问 | `cd app && npm run dev` |
+| 图片格式不支持 | 自动过滤，提示用户 | 422 + failures 列表 |
+| AI Key 未配置 | fallback 为演示数据 | `fallback: true, reason: "missing_config"` |
+| AI 调用超时/失败 | 显示错误信息 | `fallback: true, reason: "ai_error: ..."` |
+| 资料库 styles.json 损坏 | — | 自动备份 .broken-{timestamp} 后报错 |
+
+## 原则
+
+- **JSON 是唯一数据源**：Markdown 和 Style Card 均由同一份 JSON 渲染，不允许各自独立生成相同内容
+- **不编造**：字体无法识别时只说类别（如"高对比衬线体"），不确定项写入 `uncertainties`
+- **不照搬**：提取视觉规则，不复制原图内容/构图/具体品牌元素
+- **优先用户编辑**：用户手动修改过的字段覆盖 AI 原始输出
