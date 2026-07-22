@@ -28,3 +28,10 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# StyleSlice 运行时数据（上传图片与资料库）
+app/data/
