@@ -107,11 +107,9 @@ export default function Home() {
   const [uploaded, setUploaded] = useState<UploadedImage[]>([]);
   const [styles, setStyles] = useState<StyleResult[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<StyleResult | null>(null);
-  const [frontIndex, setFrontIndex] = useState(0);
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const touchStartX = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canAnalyze = files.length > 0 && stage !== "uploading" && stage !== "analyzing" && stage !== "saving";
@@ -124,7 +122,7 @@ export default function Home() {
     return () => previews.forEach((url) => URL.revokeObjectURL(url));
   }, [previews]);
 
-  const activeStyle = selectedStyle ?? styles[frontIndex] ?? null;
+  const activeStyle = selectedStyle ?? styles[0] ?? null;
 
   const stageText = useMemo(() => {
     if (stage === "uploading") return "Uploading images";
@@ -141,7 +139,6 @@ export default function Home() {
       const data = await res.json();
       const nextStyles: StyleResult[] = data.styles ?? [];
       setStyles(nextStyles);
-      setFrontIndex((current) => Math.min(current, Math.max(0, nextStyles.length - 1)));
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "资料库读取失败");
     }
@@ -232,31 +229,9 @@ export default function Home() {
     setView("archive");
   }
 
-  function openFrontStyle() {
-    const style = styles[frontIndex];
-    if (!style) return;
+  function openStyle(style: StyleResult) {
     setSelectedStyle(style);
     setView("detail");
-  }
-
-  function moveStack(direction: 1 | -1) {
-    if (styles.length <= 1) return;
-    setFrontIndex((current) => (current + direction + styles.length) % styles.length);
-  }
-
-  function handleArchiveTouchStart(event: TouchEvent) {
-    touchStartX.current = event.touches[0]?.clientX ?? null;
-  }
-
-  function handleArchiveTouchEnd(event: TouchEvent) {
-    const start = touchStartX.current;
-    touchStartX.current = null;
-    if (start === null) return;
-    const end = event.changedTouches[0]?.clientX ?? start;
-    const deltaX = end - start;
-    if (Math.abs(deltaX) < 30) return;
-    event.preventDefault();
-    moveStack(deltaX < 0 ? 1 : -1);
   }
 
   return (
@@ -284,12 +259,8 @@ export default function Home() {
         {view === "archive" && (
           <ArchiveScreen
             styles={styles}
-            frontIndex={frontIndex}
             onHome={() => setView("home")}
-            onOpen={openFrontStyle}
-            onMove={moveStack}
-            onTouchStart={handleArchiveTouchStart}
-            onTouchEnd={handleArchiveTouchEnd}
+            onOpenStyle={openStyle}
           />
         )}
 
@@ -452,26 +423,66 @@ function AnalyzingOverlay({ stage }: { stage: Stage }) {
 
 function ArchiveScreen({
   styles,
-  frontIndex,
   onHome,
-  onOpen,
-  onMove,
-  onTouchStart,
-  onTouchEnd,
+  onOpenStyle,
 }: {
   styles: StyleResult[];
-  frontIndex: number;
   onHome: () => void;
-  onOpen: () => void;
-  onMove: (direction: 1 | -1) => void;
-  onTouchStart: (event: TouchEvent) => void;
-  onTouchEnd: (event: TouchEvent) => void;
+  onOpenStyle: (style: StyleResult) => void;
 }) {
+  // 搜索过滤：名称 / 一句话定义 / 关键词
+  const [query, setQuery] = useState("");
+  const [front, setFront] = useState(0);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return styles;
+    return styles.filter((style) => {
+      if (style.name?.toLowerCase().includes(q)) return true;
+      if (style.summary?.toLowerCase().includes(q)) return true;
+      return (style.keywords ?? []).some((k) => k.word.toLowerCase().includes(q));
+    });
+  }, [styles, query]);
+
+  const frontIndex = Math.min(front, Math.max(0, filtered.length - 1));
+
+  function moveStack(direction: 1 | -1) {
+    if (filtered.length <= 1) return;
+    setFront((current) => (current + direction + filtered.length) % filtered.length);
+  }
+
+  // 点击空白区切换卡片：上半区 → 下一张，下半区 → 上一张
+  // 点到卡片本身时忽略，交给卡片的 onClick（打开详情/切换）
+  const swipeAt = useRef(0);
+  const touchX = useRef<number | null>(null);
+
+  function handleStageClick(event: React.MouseEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest(".slice-card")) return;
+    // 滑动结束后的合成 click 不重复切换
+    if (Date.now() - swipeAt.current < 400) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const isUpperHalf = event.clientY - rect.top < rect.height / 2;
+    moveStack(isUpperHalf ? 1 : -1);
+  }
+
+  function handleStageTouchStart(event: TouchEvent) {
+    touchX.current = event.touches[0]?.clientX ?? null;
+  }
+
+  function handleStageTouchEnd(event: TouchEvent) {
+    const start = touchX.current;
+    touchX.current = null;
+    if (start === null) return;
+    const end = event.changedTouches[0]?.clientX ?? start;
+    const delta = end - start;
+    if (Math.abs(delta) < 30) return;
+    swipeAt.current = Date.now();
+    moveStack(delta < 0 ? 1 : -1);
+  }
+
   return (
     <div
       className="screen archive-screen"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
     >
       <div className="archive-topline">
         <button type="button" onClick={onHome} aria-label="返回首页">←</button>
@@ -485,10 +496,11 @@ function ArchiveScreen({
 
       <div
         className="stack-stage"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
+        onClick={handleStageClick}
+        onTouchStart={handleStageTouchStart}
+        onTouchEnd={handleStageTouchEnd}
         onWheel={(event) => {
-          if (Math.abs(event.deltaY) > 8) onMove(event.deltaY > 0 ? 1 : -1);
+          if (Math.abs(event.deltaY) > 8) moveStack(event.deltaY > 0 ? 1 : -1);
         }}
       >
         {styles.length === 0 ? (
@@ -497,10 +509,16 @@ function ArchiveScreen({
             <strong>尚未生成切片</strong>
             <small>回到首页上传参考图片</small>
           </button>
+        ) : filtered.length === 0 ? (
+          <div className="empty-stack no-result">
+            <span>🔍</span>
+            <strong>没有找到「{query}」</strong>
+            <small>换个关键词试试</small>
+          </div>
         ) : (
-          styles.map((style, index) => {
-            const offset = (index - frontIndex + styles.length) % styles.length;
-            const visibleOffset = offset > styles.length / 2 ? offset - styles.length : offset;
+          filtered.map((style, index) => {
+            const offset = (index - frontIndex + filtered.length) % filtered.length;
+            const visibleOffset = offset > filtered.length / 2 ? offset - filtered.length : offset;
             const clamped = Math.max(-3, Math.min(5, visibleOffset));
             const isFront = index === frontIndex;
             // 手绘粗描边：几种不规则圆角循环使用，标签页左右交错
@@ -520,7 +538,7 @@ function ArchiveScreen({
                 className={`slice-card ${isFront ? "is-front" : ""} ${index % 2 === 1 ? "tab-right" : ""}`}
                 key={style.styleId}
                 type="button"
-                onClick={isFront ? onOpen : () => onMove(visibleOffset > 0 ? 1 : -1)}
+                onClick={isFront ? () => onOpenStyle(style) : () => moveStack(visibleOffset > 0 ? 1 : -1)}
                 style={{
                   "--stack-y": `${clamped * -28}px`,
                   "--stack-x": `${clamped * 5}px`,
@@ -561,11 +579,34 @@ function ArchiveScreen({
       </div>
 
       {styles.length > 0 && (
-        <nav className="archive-controls" aria-label="资料库切换">
-          <button type="button" onClick={() => onMove(-1)}>Prev</button>
-          <span>{frontIndex + 1} / {styles.length}</span>
-          <button type="button" onClick={() => onMove(1)}>Next</button>
-        </nav>
+        <div className="archive-controls archive-search" role="search">
+          <span className="search-icon" aria-hidden="true">🔍</span>
+          <input
+            type="search"
+            placeholder="搜索风格名称 / 关键词…"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setFront(0);
+            }}
+            aria-label="搜索切片库"
+          />
+          {query ? (
+            <button
+              className="search-clear"
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setFront(0);
+              }}
+              aria-label="清除搜索"
+            >
+              ×
+            </button>
+          ) : (
+            <span className="search-count">{filtered.length} 个切片</span>
+          )}
+        </div>
       )}
     </div>
   );

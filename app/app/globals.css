@@ -268,6 +268,10 @@ button {
   position: relative;
   padding: 20px 26px 26px;
   overflow: hidden;
+  /* 纵向 flex：让卡片堆撑满标题与底部控制条之间的空间 */
+  display: flex;
+  flex-direction: column;
+  min-height: min(844px, calc(100vh - 44px));
 }
 
 .archive-topline {
@@ -316,7 +320,8 @@ button {
 
 .stack-stage {
   position: relative;
-  height: 400px;
+  flex: 1;
+  min-height: 400px;
   margin-top: 8px;
   display: grid;
   place-items: end center;
@@ -338,7 +343,7 @@ button {
   user-select: none;
   -webkit-user-select: none;
   z-index: var(--stack-z);
-  bottom: 82px;
+  bottom: 200px;
   width: min(324px, 96%);
   height: 220px;
   padding: 0;
@@ -1482,4 +1487,64 @@ button {
 .slice-card.tab-right .folder-tab em {
   left: auto;
   right: 16px;
+}
+
+/* ---------- 资料库搜索栏（替换 Prev/Next） ---------- */
+
+.archive-search {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+}
+
+.archive-search .search-icon {
+  flex: 0 0 auto;
+  font-size: 15px;
+  opacity: 0.55;
+}
+
+.archive-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: 400 15px/1.4 var(--font-body);
+  color: var(--ink);
+}
+
+.archive-search input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* 去掉浏览器原生 search 清除按钮，统一用自己的 */
+.archive-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.archive-search .search-count {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 400 11px/1 var(--font-body);
+  white-space: nowrap;
+}
+
+.archive-search .search-clear {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 1px dashed #b9b9b9;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.empty-stack.no-result {
+  cursor: default;
 }
