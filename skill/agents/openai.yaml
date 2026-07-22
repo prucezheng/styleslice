@@ -1,6 +1,6 @@
 interface:
-  display_name: "StyleSlice 视觉规范与色卡"
-  short_description: "一键分析设计图并生成稳定一致的视觉规范和固定色卡"
-  default_prompt: "使用 $styleslice 分析我上传的设计参考图，并生成完整视觉规范和固定版式色卡。"
+  display_name: "Generate UI Style Card 色卡生成"
+  short_description: "从 PRD 和参考图生成专业色卡，仅包含 Color System、Color Usage、Design Keywords 三部分"
+  default_prompt: "使用 $generate-ui-style-card 分析我的 PRD 和参考图，生成专业色卡。"
 policy:
   allow_implicit_invocation: true

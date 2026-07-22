@@ -1,71 +1,89 @@
 ---
-name: styleslice
-description: Unified StyleSlice workflow for turning one or more JPG, PNG, or WebP design references into deterministic UI Style Cards, validated color-token JSON, optional evidence-based visual analysis JSON, and reusable visual-language Markdown. Use for “生成色卡”, “提取配色”, “分析这张图”, “提取风格”, “生成风格规范”, “切一下这张图”, Style Card, design tokens, palette boards, and complete image-to-style handoff requests. Replaces separate analysis and card-generation skills with one fixed entry point and one shared contract.
+name: generate-ui-style-card
+description: Generate a precise, professional palette-focused Style Card from an uploaded PRD and one or more visual-source images. Use when the user asks for a 色卡, Style Card, palette board, color-usage card, or PRD-aligned visual summary that must show only color tokens, color proportions, and design keywords without assuming the source is a UI screen or inventing navigation, controls, icons, typography, or other interface components.
 ---
 
-# StyleSlice 风格切片
+# Generate UI Style Card
 
-Use one entry point for every StyleSlice task. Keep the bundled renderer authoritative for sampled colors, role assignment, tonal ramps, geometry, and validation.
+Create a high-resolution, palette-focused Style Card containing only three information areas: Color System, Color Usage, and Design Keywords.
 
-## Select one mode
+Read [references/style-card-contract.md](references/style-card-contract.md) before generating.
 
-- **Card — default:** Turn one image directly into PNG, SVG, and token JSON. Use unless the user explicitly asks for written style analysis.
-- **Analyze:** Turn 1–10 images into analysis JSON and visual-language Markdown through the repository API.
-- **Full:** Analyze 1–10 images, then render the first image into a card enriched by the same analysis JSON.
+## Workflow
 
-Do not run separate legacy workflows. `scripts/styleslice.py` is the only user-facing entry point; `scripts/render_style_card.py` is its internal deterministic renderer.
+### 1. Resolve input roles
 
-## Execute
+Assign every input exactly one role:
 
-1. Call `codex_app__load_workspace_dependencies` and use its bundled Python executable because it includes Pillow and NumPy.
-2. Resolve the current image path and choose an output directory.
-3. Run exactly one command:
+- **PRD:** define the product purpose, audience, naming, and supported design direction.
+- **Visual-source image:** extract only palette, material impression, mood, contrast, and reusable design keywords.
+- **Layout-reference image:** control only grid, module proportions, spacing, radius, hierarchy, and documentation-page finish when the user provides one.
 
-```bash
-# Default: fastest deterministic color card
-<bundled-python> scripts/styleslice.py <image> --output-dir <dir>
+Follow the user's explicit labels over attachment order. Treat uploaded visual sources as arbitrary images: they may be posters, illustrations, photographs, products, webpages, or UI screens. Never assume UI-specific structure from the input type.
 
-# Complete analysis + card
-<bundled-python> scripts/styleslice.py <image...> --mode full --output-dir <dir>
+Never let conversational memory or an older project override the current PRD and current attachments.
 
-# Analysis only
-<bundled-python> scripts/styleslice.py <image...> --mode analyze --output-dir <dir>
-```
+### 2. Build a private extraction brief
 
-Add `--name`, `--source`, or `--slug` only when the user supplies or needs those labels. Add `--analysis <json>` in card mode only when matching StyleSlice analysis already exists.
+Before generating, determine:
 
-For `analyze` and `full`, read [references/analyze-workflow.md](references/analyze-workflow.md) before execution. The local repository API must be available. For renderer changes or audits, read [references/style-card-contract.md](references/style-card-contract.md).
+- 4 concise design keywords supported by the PRD or source image;
+- four core roles: Primary, Secondary, Neutral, Accent;
+- exact HEX values, avoiding unsupported precision when sampling is unreliable;
+- material rules such as flat, matte, soft, crisp, translucent, or paper-like;
+- explicit keep and avoid lists.
 
-## Preserve authority
+Do not expose lengthy analysis unless requested.
 
-Apply this order:
+### 3. Separate extraction from visual inheritance
 
-1. Current explicit user instructions
-2. User-confirmed StyleSlice JSON edits
-3. Deterministically sampled image colors
-4. Matching analysis names and keywords
-5. Fixed template defaults
+Treat the visual-source image as evidence, not as a composition template.
 
-Never let model-estimated HEX values replace sampled HEX values. Accept an analysis color name only when its declared HEX is close to the sampled color. Never invent a second palette.
+Extract:
 
-## Enforce invariants
+- dominant and supporting colors;
+- saturation, brightness, temperature, and contrast relationships;
+- broad mood and design direction;
+- defensible material qualities.
 
-- Keep the card at 1680 × 945 with template ID `styleslice-ui-board-v1`.
-- Keep exactly four distinct core roles in this order: Primary, Secondary, Neutral, Accent.
-- Require uppercase HEX values and integer proportions totaling 100%.
-- Keep eight tonal steps labeled 100–800 for every core role.
-- Keep exactly five design keywords.
-- Keep all fixed modules, spacing values 8/16/24/32, radii 4/8/12/16, and borders 1/2/3/4.
-- Exclude typography specimens, font recommendations, source subjects, logos, poster composition, and decorative hero content.
-- Never use generative image rendering for the board.
-- Never hand-edit the output SVG or PNG. Fix the source tokens or renderer, then rerun.
+Do not inherit unless the user explicitly requests it:
 
-## Deliver
+- characters, logos, mascots, objects, or recognizable illustrations;
+- hand-drawn lines, doodles, irregular silhouettes, collage, or art decoration;
+- the source image's typography, composition, component shapes, interface controls, or page structure;
+- phone chrome, watermarks, captions, dates, or platform UI.
 
-Require the command to end with `"validation": "passed"`. Inspect the PNG at full resolution, then return every generated artifact:
+### 4. Apply the fixed professional structure
 
-- Card: `*-style-card.png`, `*-style-card.svg`, `*-tokens.json`
-- Analyze: `*-analysis.json`, `*-style.md`
-- Full: all five files
+Default to a high-resolution, landscape professional style-guide page with:
 
-Confirm printed HEX values match JSON, proportions total 100%, PNG dimensions are 1680 × 945, and no label is clipped. Re-running the same card command on the same input must produce identical JSON colors and SVG bytes except for explicitly changed metadata.
+- light cool-gray canvas;
+- white or near-white rounded modules;
+- uniform gaps and radii;
+- narrow left color-token column;
+- Color Usage module in the remaining upper area;
+- Design Keywords module in the remaining lower area;
+- crisp, restrained, documentation-like graphics;
+- little or no shadow and no decorative hero area.
+
+Do not show typography, UI controls, or product-screen demonstrations.
+
+### 5. Populate exactly three areas
+
+Use only:
+
+1. **Color System:** Primary, Secondary, Neutral, and Accent cards with HEX values and tonal ramps.
+2. **Color Usage:** one proportional color bar plus a four-role legend.
+3. **Design Keywords:** four concise keyword chips.
+
+Do not add buttons, fields, navigation, spacing tokens, radii, borders, icons, status colors, metadata, typography, full screens, titles, hero illustrations, or invented business copy.
+
+### 6. Generate and inspect
+
+Use the image-generation tool with source and layout references when available. State each reference's role explicitly in the prompt. Prefer English labels to reduce image-text errors unless the user requests Chinese.
+
+After generation, inspect the image at full resolution. Check every item in the contract's QA checklist. If only a local area is wrong, edit that area while preserving all correct regions. Regenerate the whole card only when the grid, hierarchy, or overall style is fundamentally wrong.
+
+### 7. Deliver
+
+Return the rendered PNG image and a direct download link. Briefly state the extracted palette and confirm that no interface components were invented. Do not claim unsupported details.
