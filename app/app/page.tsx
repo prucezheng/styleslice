@@ -498,6 +498,12 @@ function ArchiveScreen({
             const visibleOffset = offset > styles.length / 2 ? offset - styles.length : offset;
             const clamped = Math.max(-3, Math.min(5, visibleOffset));
             const isFront = index === frontIndex;
+            // 手绘粗描边：几种不规则圆角循环使用，标签页左右交错
+            const doodleRadius = [
+              "18px 26px 20px 24px / 24px 18px 26px 20px",
+              "26px 16px 24px 20px / 16px 26px 18px 24px",
+              "20px 24px 18px 26px / 26px 18px 24px 16px",
+            ][index % 3];
             const colors = [
               colorAt(style, 0, "#f5f1ea"),
               colorAt(style, 1, "#1e1b16"),
@@ -506,7 +512,7 @@ function ArchiveScreen({
             const sourceImageId = style.source?.primaryImageIds?.[0] ?? style.source?.imageIds?.[0];
             return (
               <button
-                className={`slice-card ${isFront ? "is-front" : ""}`}
+                className={`slice-card ${isFront ? "is-front" : ""} ${index % 2 === 1 ? "tab-right" : ""}`}
                 key={style.styleId}
                 type="button"
                 onClick={isFront ? onOpen : () => onMove(visibleOffset > 0 ? 1 : -1)}
@@ -516,6 +522,7 @@ function ArchiveScreen({
                   "--stack-scale": `${1 - Math.abs(clamped) * 0.04}`,
                   "--stack-rotate": `${clamped * -1.6}deg`,
                   "--stack-z": `${80 - Math.abs(clamped)}`,
+                  "--card-radius": doodleRadius,
                   "--card-a": colors[0],
                   "--card-b": colors[1],
                   "--card-c": colors[2],
@@ -524,12 +531,6 @@ function ArchiveScreen({
                 <span className="folder-tab" aria-hidden="true">
                   <em>{`SLICE-${String(index + 1).padStart(2, "0")}`}</em>
                 </span>
-                {isFront && (
-                  <>
-                    <span className="folder-paper paper-a" aria-hidden="true" />
-                    <span className="folder-paper paper-b" aria-hidden="true" />
-                  </>
-                )}
                 <div className="folder-content">
                   {sourceImageId ? (
                     <img

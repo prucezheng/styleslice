@@ -329,43 +329,52 @@ button {
   --stack-scale: 1;
   --stack-rotate: 0deg;
   --stack-z: 1;
+  --card-radius: 20px 24px 18px 26px / 26px 18px 24px 16px;
   position: absolute;
   z-index: var(--stack-z);
   bottom: 82px;
   width: min(324px, 96%);
   height: 220px;
   padding: 0;
-  border: 2px solid #111111;
-  border-radius: 18px 18px 20px 20px;
+  /* 手绘粗描边：3.5px 不规则圆角 */
+  border: 3.5px solid #111111;
+  border-radius: var(--card-radius);
   background: #ffffff;
-  box-shadow: 0 14px 0 rgba(17, 17, 17, 0.12), var(--shadow-hard);
   transform: translate3d(var(--stack-x), var(--stack-y), 0) scale(var(--stack-scale)) rotate(var(--stack-rotate));
   transform-origin: bottom center;
-  transition: transform 520ms var(--ease-smooth), box-shadow 520ms var(--ease-smooth), opacity 520ms var(--ease-smooth);
+  transition: transform 520ms var(--ease-smooth), opacity 520ms var(--ease-smooth);
   cursor: pointer;
   overflow: visible;
 }
 
 .folder-tab {
   position: absolute;
-  left: 62px;
-  top: -34px;
+  left: 34px;
+  top: -31px;
   z-index: -1;
-  width: 158px;
-  height: 54px;
-  border: 2px solid #111111;
+  width: 132px;
+  height: 50px;
+  border: 3.5px solid #111111;
   border-bottom: 0;
-  border-radius: 24px 24px 0 0;
+  /* 手绘感标签页：两角不对称 */
+  border-radius: 18px 26px 0 0 / 14px 18px 0 0;
   background: #ffffff;
+}
+
+/* 标签页左右交错 */
+.slice-card.tab-right .folder-tab {
+  left: auto;
+  right: 34px;
+  border-radius: 26px 18px 0 0 / 18px 14px 0 0;
 }
 
 .folder-tab::after {
   content: "";
   position: absolute;
-  left: -2px;
-  right: -2px;
-  bottom: -5px;
-  height: 9px;
+  left: -3.5px;
+  right: -3.5px;
+  bottom: -6px;
+  height: 10px;
   background: #ffffff;
 }
 
@@ -1462,24 +1471,9 @@ button {
   letter-spacing: 1px;
 }
 
-.folder-paper {
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  top: -12px;
-  z-index: 0;
-  height: 40px;
-  border: 1.5px solid #111111;
-  border-radius: 6px 7px 0 0;
-  background: #ffffff;
-}
 
-.folder-paper.paper-a {
-  transform: rotate(-2.4deg) translateX(-6px);
-}
-
-.folder-paper.paper-b {
-  top: -8px;
-  transform: rotate(1.8deg) translateX(5px);
-  background: #fbfaf7;
+/* 右侧标签页时编号靠右 */
+.slice-card.tab-right .folder-tab em {
+  left: auto;
+  right: 16px;
 }
