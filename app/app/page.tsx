@@ -266,7 +266,6 @@ export default function Home() {
             files={files}
             previews={previews}
             uploaded={uploaded}
-            stage={stage}
             stageText={stageText}
             canAnalyze={canAnalyze}
             message={message}
@@ -305,7 +304,6 @@ function HomeScreen({
   files,
   previews,
   uploaded,
-  stage,
   stageText,
   canAnalyze,
   message,
@@ -321,7 +319,6 @@ function HomeScreen({
   files: File[];
   previews: string[];
   uploaded: UploadedImage[];
-  stage: Stage;
   stageText: string;
   canAnalyze: boolean;
   message: string;
@@ -334,7 +331,6 @@ function HomeScreen({
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onStart: () => void;
 }) {
-  const isWorking = stage === "uploading" || stage === "analyzing" || stage === "saving";
   return (
     <div className="screen home-screen">
       <button className="identity-strip" type="button" onClick={onArchive} aria-label="打开资料库">
@@ -381,35 +377,19 @@ function HomeScreen({
         </div>
 
         <div className="file-readout" aria-live="polite">
-          {files.length > 0 && !isWorking && (
+          {files.length > 0 && (
             <>
               <strong>{files.length} image{files.length > 1 ? "s" : ""} selected</strong>
               <span>{files.map((file) => `${file.name} · ${formatBytes(file.size)}`).join(" / ")}</span>
             </>
           )}
-          {uploaded.length > 0 && !isWorking && <span>{uploaded.length} images imported to analysis queue.</span>}
+          {uploaded.length > 0 && <span>{uploaded.length} images imported to analysis queue.</span>}
           {message && <span className="error-text">{message}</span>}
         </div>
-
-        {isWorking && (
-          <div className="sketch-progress" aria-live="polite" aria-label="处理中">
-            <div className="sketch-progress-track">
-              <div className="sketch-progress-fill" />
-            </div>
-            <p className="sketch-progress-label">{stageText}</p>
-            <div className="sketch-doodle">
-              <svg width="120" height="32" viewBox="0 0 120 32" fill="none" aria-hidden="true">
-                <path d="M6 16 Q20 2 34 14 Q48 26 62 16 Q76 6 90 18 Q104 28 114 14" stroke="#111" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeDasharray="80" strokeDashoffset="0">
-                  <animate attributeName="stroke-dashoffset" from="80" to="-80" dur="1.6s" repeatCount="indefinite" />
-                </path>
-              </svg>
-            </div>
-          </div>
-        )}
       </div>
 
       <button className="primary-action" type="button" onClick={onStart} disabled={!canAnalyze}>
-        {isWorking ? stageText : stageText}
+        {stageText}
       </button>
     </div>
   );
