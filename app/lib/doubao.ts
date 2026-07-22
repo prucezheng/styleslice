@@ -50,6 +50,10 @@ export async function analyzeImages(
   images: { base64: string; mime: string }[],
   primaryIndexes: number[] = []
 ): Promise<StyleAnalysis> {
+  if (!images || images.length === 0) {
+    throw new Error("至少需要一张图片");
+  }
+
   const apiKey = process.env.ARK_API_KEY;
   const model = process.env.ARK_MODEL;
   if (!apiKey || !model) {

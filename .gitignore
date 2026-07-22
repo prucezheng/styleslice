@@ -35,3 +35,6 @@ out/
 
 # StyleSlice 运行时数据（上传图片与资料库）
 app/data/
+
+# TypeScript 增量编译缓存
+*.tsbuildinfo

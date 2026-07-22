@@ -33,8 +33,11 @@ export function renderMarkdown(a: StyleAnalysis): string {
 
   const colorLines = (a.colors ?? [])
     .map(
-      (c) =>
-        `| ${roleLabel[c.role] ?? c.role} | ${c.name} | \`${c.hex}\` | ${c.proportion} | ${CONF_LABEL[c.confidence] ?? c.confidence} |`
+      (c) => {
+        const evidence =
+          c.evidenceImages?.length > 0 ? `图片 ${c.evidenceImages.join("、")}` : "—";
+        return `| ${roleLabel[c.role] ?? c.role} | ${c.name} | \`${c.hex}\` | ${c.proportion} | ${CONF_LABEL[c.confidence] ?? c.confidence} | ${evidence} |`;
+      }
     )
     .join("\n");
 
@@ -54,8 +57,8 @@ ${a.summary}
 
 ## 3. 色彩系统与使用比例
 
-| 角色 | 名称 | 色值 | 占比 | 置信度 |
-| --- | --- | --- | --- | --- |
+| 角色 | 名称 | 色值 | 占比 | 置信度 | 证据 |
+| --- | --- | --- | --- | --- | --- |
 ${colorLines}
 
 ## 4. 字体气质、字重关系与排版层级

@@ -19,18 +19,19 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "请求体错误" }, { status: 400 });
-  // 编辑规则字段时，MD 由服务端同步重渲染，保证 JSON 与 MD 一致
+  // MD 始终以服务端基于结构化数据重渲染为准，忽略客户端传入的 markdown，
+  // 防止「完整对象 + 修改字段」提交时旧 MD 残留导致 JSON/MD 不一致
   const patch = { ...body };
   delete patch.styleId;
   delete patch.version;
   delete patch.createdAt;
-  if (!body.markdown) {
-    const current = await getStyle(params.id);
-    if (!current) return NextResponse.json({ error: "风格不存在" }, { status: 404 });
-    const merged = { ...current, ...patch };
-    const { markdown: _m, source: _s, ...analysis } = merged;
-    patch.markdown = renderMarkdown(analysis as StyleAnalysis);
-  }
+  delete patch.updatedAt;
+  delete patch.markdown;
+  const current = await getStyle(params.id);
+  if (!current) return NextResponse.json({ error: "风格不存在" }, { status: 404 });
+  const merged = { ...current, ...patch };
+  const { markdown: _m, source: _s, ...analysis } = merged;
+  patch.markdown = renderMarkdown(analysis as StyleAnalysis);
   const updated = await updateStyle(params.id, patch);
   if (!updated) return NextResponse.json({ error: "风格不存在" }, { status: 404 });
   return NextResponse.json(updated);

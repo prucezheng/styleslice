@@ -9,15 +9,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImages } from "@/lib/doubao";
 import { renderMarkdown } from "@/lib/md";
-import { readUpload } from "@/lib/store";
+import { readUpload, isValidId } from "@/lib/store";
 import { DEMO_ANALYSIS } from "@/lib/demo";
 import type { StyleAnalysis } from "@/lib/schema";
-
-const MIME_BY_EXT: Record<string, string> = {
-  jpg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-};
 
 export const maxDuration = 120;
 
@@ -29,42 +23,62 @@ export async function POST(req: NextRequest) {
   const imageIds: string[] = body.imageIds.slice(0, 10);
   const primaryImageIds: string[] = body.primaryImageIds ?? [];
 
-  const useDemo =
-    body.demo === true ||
-    process.env.DEMO_MODE === "1" ||
-    !process.env.ARK_API_KEY ||
-    !process.env.ARK_MODEL;
-
   let analysis: StyleAnalysis;
   let fallback = false;
+  let fallbackReason: string | null = null;
 
-  if (useDemo) {
+  if (body.demo === true) {
     analysis = DEMO_ANALYSIS;
     fallback = true;
+    fallbackReason = "demo";
+  } else if (process.env.DEMO_MODE === "1") {
+    analysis = DEMO_ANALYSIS;
+    fallback = true;
+    fallbackReason = "demo_mode";
   } else {
-    try {
-      // 按上传顺序读图并转 base64，编号从 1 开始
-      const images = [];
-      for (const id of imageIds) {
-        const buf = await readUpload(id);
-        if (!buf) throw new Error(`图片不存在或已删除：${id}`);
-        images.push({ base64: buf.toString("base64"), mime: "image/jpeg" });
+    // 非显式 demo 时，先校验图片资源：ID 非法或文件不存在属于输入错误，
+    // 返回 400/404，绝不静默回退演示数据（避免用户保存假结果）
+    const images = [];
+    for (const id of imageIds) {
+      if (!isValidId(id)) {
+        return NextResponse.json({ error: `非法的图片 ID：${id}` }, { status: 400 });
       }
-      const primaryIndexes = primaryImageIds
-        .map((pid) => imageIds.indexOf(pid) + 1)
-        .filter((i) => i > 0);
-      analysis = await analyzeImages(images, primaryIndexes);
-    } catch (err) {
-      console.error("[analyze] AI 调用失败，回退演示数据：", err);
+      const file = await readUpload(id);
+      if (!file) {
+        return NextResponse.json(
+          { error: `图片不存在或已删除：${id}` },
+          { status: 404 }
+        );
+      }
+      images.push({ base64: file.buffer.toString("base64"), mime: file.mime });
+    }
+    const primaryIndexes = primaryImageIds
+      .map((pid) => imageIds.indexOf(pid) + 1)
+      .filter((i) => i > 0);
+    if (!process.env.ARK_API_KEY || !process.env.ARK_MODEL) {
       analysis = DEMO_ANALYSIS;
       fallback = true;
+      fallbackReason = "missing_config";
+    } else {
+      try {
+        // 只有模型调用失败才回退演示数据
+        analysis = await analyzeImages(images, primaryIndexes);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[analyze] AI 调用失败，回退演示数据：", message);
+        analysis = DEMO_ANALYSIS;
+        fallback = true;
+        fallbackReason = `ai_error: ${message.slice(0, 200)}`;
+      }
     }
   }
 
-  return NextResponse.json({
+  const result: Record<string, unknown> = {
     ...analysis,
     markdown: renderMarkdown(analysis),
     source: { imageIds, primaryImageIds },
     fallback,
-  });
+  };
+  if (fallbackReason) result.fallbackReason = fallbackReason;
+  return NextResponse.json(result);
 }

@@ -43,5 +43,13 @@ export async function POST(req: NextRequest) {
     images.push({ imageId, name: file.name, size: file.size });
   }
 
+  // 全部失败时不应返回成功
+  if (images.length === 0) {
+    return NextResponse.json(
+      { error: "没有可上传的图片", images, failures },
+      { status: 422 }
+    );
+  }
+
   return NextResponse.json({ images, failures });
 }
