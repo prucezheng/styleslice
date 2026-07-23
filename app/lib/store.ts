@@ -38,7 +38,8 @@ function getSupabaseClient() {
   return createClient(url, key);
 }
 
-let _supabase: ReturnType<typeof createClient> | null | undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _supabase: any;
 
 function getSupabase() {
   if (_supabase === undefined) {
