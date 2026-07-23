@@ -24,152 +24,194 @@ function fmtList(items: string[]): string {
 }
 
 /**
- * JSON → 后期风格精简参数（类似 Lightroom 预设 / VSCO 滤镜名）
- * 纯后期处理指令，不描述照片内容。用户复制即可用于修图。
+ * JSON → 设计风格精简参数（可复制粘贴到 AI 设计工具的快速风格描述）
+ * 纯设计语言描述，不绑定具体项目内容。
  */
 export function renderPromptShort(a: StyleAnalysis): string {
   const segments: string[] = [];
 
-  // 风格名
+  // 风格名 + 流派
   segments.push(`【${a.name}】`);
+  if (a.designLanguage && a.designLanguage.movement !== "无明显流派") {
+    segments.push(`${a.designLanguage.movement}风`);
+  }
 
-  // 调色维度
-  const colorParts: string[] = [];
+  // 色彩维度
   const fullText = a.summary + (a.keywords ?? []).map((k) => k.meaning + k.word).join("");
+  const colorParts: string[] = [];
 
   // 色温
   if (/暖/.test(fullText)) colorParts.push("暖调");
   else if (/冷/.test(fullText)) colorParts.push("冷调");
 
   // 饱和度
-  if (/低饱|褪色|降饱|淡雅/.test(fullText)) colorParts.push("低饱和");
-  else if (/高饱|鲜艳|浓郁/.test(fullText)) colorParts.push("高饱和");
-
-  // 主要色系（仅取1-2个，用抽象词）
-  const paletteHints: string[] = [];
-  for (const c of a.colors ?? []) {
-    const n = c.name;
-    if (/橙|橘/.test(n)) paletteHints.push("偏橙");
-    if (/蓝|青/.test(n)) paletteHints.push("偏蓝");
-    if (/黄|金/.test(n)) paletteHints.push("偏黄");
-    if (/绿/.test(n)) paletteHints.push("偏绿");
-    if (/红/.test(n)) paletteHints.push("偏红");
-    if (/紫/.test(n)) paletteHints.push("偏紫");
-  }
-  // 去重取前2个
-  const seen = new Set<string>();
-  const uniqueHints: string[] = [];
-  for (const h of paletteHints) {
-    if (!seen.has(h)) { seen.add(h); uniqueHints.push(h); }
-  }
-  colorParts.push(...uniqueHints.slice(0, 2));
+  if (/低饱|降饱|褪色|淡雅|收敛/.test(fullText)) colorParts.push("低饱和");
+  else if (/高饱|鲜艳|浓郁|高饱和/.test(fullText)) colorParts.push("高饱和");
 
   if (colorParts.length) segments.push(colorParts.join("+"));
 
+  // 空间维度
+  const spaceParts: string[] = [];
+  if (/留白|负空间|呼吸/.test(fullText)) spaceParts.push("大留白");
+  if (/密集|紧凑/.test(fullText)) spaceParts.push("高密度");
+  if (/网格/.test(fullText)) spaceParts.push("网格对齐");
+  if (spaceParts.length) segments.push(spaceParts.join("+"));
+
+  // 形态维度
+  const formParts: string[] = [];
+  if (/直角|锐利|硬边/.test(fullText)) formParts.push("硬边直角");
+  if (/圆角/.test(fullText)) formParts.push("圆角");
+  if (/有机|曲线/.test(fullText)) formParts.push("有机形");
+  if (formParts.length) segments.push(formParts.join("+"));
+
   // 光影维度
-  const lightParts: string[] = [];
-  if (/高对比|强对比|反差/.test(fullText)) lightParts.push("强对比");
-  else if (/低对比|柔/.test(fullText)) lightParts.push("柔对比");
-  if (/暗角|晕影/.test(fullText)) lightParts.push("暗角");
-  if (/褪色|fade|黑色提升/.test(fullText)) lightParts.push("褪色");
-  if (/过曝|高光|提亮/.test(fullText)) lightParts.push("高光偏亮");
-  if (/欠曝|暗调|低曝/.test(fullText)) lightParts.push("暗调");
-  if (lightParts.length) segments.push(lightParts.join("+"));
-
-  // 质感维度
-  const textureParts: string[] = [];
-  const combined = (a.imagery?.treatment?.value ?? "") + (a.effects?.texture?.value ?? "") + (a.effects?.shadow?.value ?? "");
-  if (/颗粒|噪点/.test(combined)) textureParts.push("颗粒");
-  if (/胶片/.test(combined)) textureParts.push("胶片感");
-  if (/柔焦|模糊/.test(combined)) textureParts.push("柔焦");
-  if (/锐/.test(combined)) textureParts.push("锐化");
-  if (/纸纹|纸感/.test(combined)) textureParts.push("纸纹");
-  if (/磨皮|光滑/.test(combined)) textureParts.push("磨皮");
-  if (textureParts.length) segments.push(textureParts.join("+"));
-
-  // 裁切
-  const crop = a.imagery?.crop?.value ?? "";
-  if (/4:3|4：3/.test(crop)) segments.push("4:3");
-  else if (/3:2|3：2/.test(crop)) segments.push("3:2");
-  else if (/16:9|16：9/.test(crop)) segments.push("16:9");
-  else if (/1:1|1：1/.test(crop)) segments.push("1:1");
+  const effParts: string[] = [];
+  if (/扁平|无投影/.test(fullText)) effParts.push("扁平无投影");
+  if (/阴影|投影/.test(fullText)) effParts.push("带投影");
+  if (/噪点|颗粒/.test(fullText)) effParts.push("噪点肌理");
+  if (effParts.length) segments.push(effParts.join("+"));
 
   return segments.join(" | ");
 }
 
 /**
- * JSON → 照片后期处理完整指南
- * 按后期维度组织：白平衡/色调 → 饱和度 → 对比度/光影 → 质感/纹理 → 裁切
- * 每一行是可执行操作，不描述画面内容（不出现物体/地标/场景名）
+ * JSON → 设计风格可复用提示词
+ * 固定 8–9 节，每节格式统一：`- **两字标签**：描述`，节奏稳定，无嵌套子节。
  */
 export function renderPrompt(a: StyleAnalysis): string {
   const sections: string[] = [];
 
   // 开场
-  sections.push(
-    `## ${a.name}\n\n> ${a.summary}\n\n将以下后期参数套用到任意照片即可获得相似风格。**本指南只含后期处理手法，不含画面内容描述。**`
-  );
+  sections.push(`## ${a.name}\n\n> ${a.summary}`);
 
   const fullText = a.summary + (a.keywords ?? []).map((k) => k.meaning + k.word).join("");
-  const combined = (a.imagery?.treatment?.value ?? "") + (a.effects?.texture?.value ?? "") + (a.effects?.shadow?.value ?? "");
-  const avoidAll = (a.avoid ?? []).join("");
 
-  // 1. 白平衡与色温
-  const wbItems: string[] = [];
-  if (/暖/.test(fullText)) wbItems.push("- 色温偏暖（+色温），画面整体偏黄/橙");
-  else if (/冷/.test(fullText)) wbItems.push("- 色温偏冷（-色温），画面整体偏蓝/青");
-  if (/偏青/.test(fullText)) wbItems.push("- 高光偏青，阴影偏暖");
-  if (/偏品/.test(fullText)) wbItems.push("- 色调偏品红");
-  if (/偏绿/.test(fullText)) wbItems.push("- 色调偏绿");
-  if (wbItems.length) sections.push(`### 白平衡与色温\n${wbItems.join("\n")}`);
-
-  // 2. 调色
-  const colors = a.colors ?? [];
-  if (colors.length > 0) {
-    const cItems: string[] = [];
-    for (const c of colors) {
-      cItems.push(`- ${c.name}（\`${c.hex}\`）— ${c.role === "background" ? "画面大面积底色" : c.role === "primary" ? "主色调" : c.role === "accent" ? "点缀强调" : c.role}，占比${c.proportion}`);
-    }
-    if (/低饱|褪色|降饱|淡雅/.test(fullText)) cItems.push("- 整体饱和度偏低，色彩收敛");
-    else if (/高饱|鲜艳|浓郁/.test(fullText)) cItems.push("- 整体饱和度偏高，色彩鲜明");
-    sections.push(`### 调色\n${cItems.join("\n")}`);
+  // 1. 流派
+  if (a.designLanguage && a.designLanguage.movement !== "无明显流派") {
+    const confLabel = a.designLanguage.confidence === "high" ? "高" : a.designLanguage.confidence === "medium" ? "中" : "低";
+    sections.push(
+      `### 流派\n- **归属**：${a.designLanguage.movement}（置信度：${confLabel}）\n- **依据**：${a.designLanguage.rationale}`
+    );
   }
 
-  // 3. 对比度与光影
-  const lightItems: string[] = [];
-  if (/高对比|强对比|反差/.test(combined)) lightItems.push("- 对比度偏高，明暗交界分明");
-  else if (/低对比|柔/.test(combined)) lightItems.push("- 对比度偏低，明暗过渡柔和");
-  if (/褪色|fade|黑色提升/.test(combined)) lightItems.push("- 黑色端提升（lift blacks），暗部偏灰，褪色感");
-  if (/过曝|高光偏亮|高调/.test(combined + fullText)) lightItems.push("- 高光适当过曝，亮部细节可丢失");
-  if (/欠曝|暗调|低曝/.test(combined + fullText)) lightItems.push("- 整体偏暗，曝光偏低");
-  if (lightItems.length) sections.push(`### 对比度与光影\n${lightItems.join("\n")}`);
+  // 2. 色彩
+  const colorItems: string[] = [];
+  if (/暖/.test(fullText)) colorItems.push("- **色温**：暖调，偏琥珀/橙");
+  else if (/冷/.test(fullText)) colorItems.push("- **色温**：冷调，偏蓝/青");
+  else colorItems.push("- **色温**：中性");
 
-  // 4. 质感与纹理
-  const texItems: string[] = [];
-  if (/颗粒|噪点/.test(combined)) texItems.push("- 叠加细颗粒噪点，模拟胶片质感");
-  if (/胶片|胶卷/.test(combined)) texItems.push("- 胶片色调曲线，高光偏暖阴影偏冷");
-  if (/暗角|晕影/.test(combined)) texItems.push("- 四角添加暗角（vignette），引导视线");
-  if (/柔焦|模糊/.test(combined)) texItems.push("- 柔焦处理，降低画面锐度");
-  if (/锐/.test(combined)) texItems.push("- 整体锐化，保持清晰度");
-  if (/磨皮/.test(combined)) texItems.push("- 光滑表面柔化（磨皮）");
-  if (/纸纹|纸感/.test(combined)) texItems.push("- 叠加轻微纸纹/纹理贴图");
-  if (texItems.length) sections.push(`### 质感与纹理\n${texItems.join("\n")}`);
+  if (/低饱|降饱|褪色|淡雅|收敛|克制/.test(fullText)) colorItems.push("- **饱和**：低饱和，色彩收敛克制");
+  else if (/高饱|鲜艳|浓郁/.test(fullText)) colorItems.push("- **饱和**：高饱和，色彩鲜明有力");
+  else colorItems.push("- **饱和**：自然");
 
-  // 5. 裁切
-  const crop = a.imagery?.crop?.value ?? "";
-  if (crop) {
-    sections.push(`### 裁切\n- 裁切比例：${crop}`);
+  for (const c of a.colors ?? []) {
+    const roleDesc = c.role === "background" ? "底" : c.role === "primary" ? "主" : c.role === "accent" ? "强调" : "辅";
+    colorItems.push(`- **${c.name}** \`${c.hex}\`（${roleDesc}，${c.proportion}）`);
+  }
+  sections.push(`### 色彩\n${colorItems.join("\n")}`);
+
+  // 3. 空间
+  const spaceItems: string[] = [];
+  const densityVal = a.layout?.density?.value ?? "";
+  const whitespaceVal = a.layout?.whitespace?.value ?? "";
+  const focusVal = a.layout?.visualFocus?.value ?? "";
+  const gridVal = a.layout?.grid?.value ?? "";
+
+  const densityText = densityVal || whitespaceVal;
+  if (/稀疏|低密|呼吸|留白|宽松/.test(densityText)) spaceItems.push("- **密度**：低密度，元素间呼吸感强");
+  else if (/密集|紧凑|高密/.test(densityText)) spaceItems.push("- **密度**：高密度，信息紧凑高效");
+  else if (densityText) spaceItems.push(`- **密度**：${densityText}`);
+  else spaceItems.push("- **密度**：适中");
+
+  if (/留白|负空间|50%/.test(whitespaceVal)) spaceItems.push("- **留白**：负空间占比高，留白是主动设计元素");
+  else if (whitespaceVal) spaceItems.push(`- **留白**：${whitespaceVal}`);
+  else spaceItems.push("- **留白**：常规");
+
+  if (/对角|左上|偏移|非对称/.test(focusVal)) spaceItems.push("- **重心**：非对称，视觉流偏移中心");
+  else if (focusVal) spaceItems.push(`- **重心**：${focusVal}`);
+  else spaceItems.push("- **重心**：居中式");
+
+  if (/网格|模块|列|grid|对齐/.test(gridVal)) spaceItems.push("- **网格**：严格模块化对齐");
+  else if (gridVal) spaceItems.push(`- **网格**：${gridVal}`);
+  else spaceItems.push("- **网格**：自由布局");
+
+  sections.push(`### 空间\n${spaceItems.join("\n")}`);
+
+  // 4. 造型
+  const formItems: string[] = [];
+  const cornersVal = a.shapes?.corners?.value ?? "";
+  const bordersVal = a.shapes?.borders?.value ?? "";
+  const shapeFormVal = a.shapes?.form?.value ?? "";
+
+  if (/直角|无圆角|0/.test(cornersVal)) formItems.push("- **圆角**：纯直角，锐利硬朗");
+  else if (/微.*圆角|小.*圆角|2.?4/.test(cornersVal)) formItems.push("- **圆角**：微圆角（2-4px）");
+  else if (/大.*圆角|圆润/.test(cornersVal)) formItems.push("- **圆角**：大圆角，亲和柔软");
+  else if (cornersVal) formItems.push(`- **圆角**：${cornersVal}`);
+  else formItems.push("- **圆角**：常规");
+
+  if (/细.*线|1px|无.*边框|留白.*分/.test(bordersVal)) formItems.push("- **分割**：细线或无边框，靠留白和色块区分区域");
+  else if (bordersVal) formItems.push(`- **分割**：${bordersVal}`);
+  else formItems.push("- **分割**：常规边框");
+
+  if (/几何|矩形|硬边|直线|构成/.test(shapeFormVal)) formItems.push("- **形态**：纯几何，矩形与直线为主");
+  else if (/有机|曲线|流体|自然/.test(shapeFormVal)) formItems.push("- **形态**：有机曲线，柔和流动");
+  else if (shapeFormVal) formItems.push(`- **形态**：${shapeFormVal}`);
+  else formItems.push("- **形态**：混合");
+
+  sections.push(`### 造型\n${formItems.join("\n")}`);
+
+  // 5. 材质
+  const matItems: string[] = [];
+  const shadowVal = a.effects?.shadow?.value ?? "";
+  const textureVal = a.effects?.texture?.value ?? "";
+
+  if (/无.*投影|扁平/.test(shadowVal)) matItems.push("- **阴影**：完全无投影，纯扁平");
+  else if (/柔和|弥散/.test(shadowVal)) matItems.push("- **阴影**：柔和弥散，轻微浮起感");
+  else if (/硬|锐|多层/.test(shadowVal)) matItems.push("- **阴影**：锐利硬投影，强化纵深");
+  else if (shadowVal) matItems.push(`- **阴影**：${shadowVal}`);
+  else matItems.push("- **阴影**：无");
+
+  if (/光滑|无.*纹理|平面/.test(textureVal)) matItems.push("- **质感**：光滑平面，无纹理");
+  else if (/颗粒|噪点|胶片/.test(textureVal)) matItems.push("- **质感**：轻微颗粒/噪点，胶片触感");
+  else if (/纸纹|纸感/.test(textureVal)) matItems.push("- **质感**：纸纹肌理");
+  else if (/毛玻璃|磨砂|玻璃/.test(textureVal)) matItems.push("- **质感**：磨砂/毛玻璃");
+  else if (textureVal) matItems.push(`- **质感**：${textureVal}`);
+  else matItems.push("- **质感**：无特殊纹理");
+
+  sections.push(`### 材质\n${matItems.join("\n")}`);
+
+  // 6. 图像
+  const imgItems: string[] = [];
+  const imgTypeVal = a.imagery?.type?.value ?? "";
+  const cropVal = a.imagery?.crop?.value ?? "";
+  const treatmentVal = a.imagery?.treatment?.value ?? "";
+
+  if (imgTypeVal) imgItems.push(`- **类型**：${imgTypeVal}`);
+  if (cropVal) imgItems.push(`- **裁切**：${cropVal}`);
+  if (treatmentVal) imgItems.push(`- **处理**：${treatmentVal}`);
+
+  if (imgItems.length) sections.push(`### 图像\n${imgItems.join("\n")}`);
+
+  // 7. 组件（可选）
+  const comps = a.components ?? [];
+  const validComps = comps.filter((c) => c.value && !/无明显/.test(c.value));
+  if (validComps.length) {
+    sections.push(`### 组件\n${validComps.map((c) => `- ${c.value}`).join("\n")}`);
   }
 
-  // 6. 保留
-  if ((a.mustKeep ?? []).length) {
-    sections.push(`### 必须保留\n${a.mustKeep.map((s) => `- ${s}`).join("\n")}`);
-  }
+  // 8. 约束
+  const constraintItems: string[] = [];
+  if ((a.mustKeep ?? []).length) constraintItems.push(...a.mustKeep.map((s) => `- **保留**：${s}`));
+  if ((a.avoid ?? []).length) constraintItems.push(...a.avoid.map((s) => `- **禁止**：${s}`));
+  if (constraintItems.length) sections.push(`### 约束\n${constraintItems.join("\n")}`);
 
-  // 7. 避免
-  if ((a.avoid ?? []).length) {
-    sections.push(`### 避免\n${a.avoid.map((s) => `- ${s}`).join("\n")}`);
-  }
+  // 9. 备注（不确定项 + 免责）
+  const notes: string[] = [];
+  if ((a.uncertainties ?? []).length) notes.push(...a.uncertainties.map((s) => `- ${s}`));
+  notes.push("- 以上为可迁移的视觉语言规范，可套用到任意设计项目");
+  notes.push("- 色彩比例允许 ±10% 浮动，不得引入新色相");
+  notes.push("- 不包含原图具体内容、品牌标识或受保护图形");
+  sections.push(`### 备注\n${notes.join("\n")}`);
 
   return sections.join("\n\n");
 }
@@ -200,55 +242,61 @@ export function renderMarkdown(a: StyleAnalysis): string {
 
 ${(a.keywords ?? []).map((k) => `- **${k.word}**：${k.meaning}`).join("\n")}
 
-## 2. 整体气质与视觉原则
+## 2. 设计流派归属
+
+${a.designLanguage && a.designLanguage.movement !== "无明显流派"
+    ? `- **${a.designLanguage.movement}**（置信度：${CONF_LABEL[a.designLanguage.confidence] ?? a.designLanguage.confidence}）\n- ${a.designLanguage.rationale}`
+    : "- 未检测到明显已知设计流派特征"}
+
+## 3. 整体气质与视觉原则
 
 ${a.summary}
 
 本规范只定义视觉语言，不绑定任何具体项目类型（App / 网页 / 海报均可适用）。具体项目的内容、布局与功能需在使用本规范时另行提供。
 
-## 3. 色彩系统与使用比例
+## 4. 色彩系统与使用比例
 
 | 角色 | 名称 | 色值 | 占比 | 置信度 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 ${colorLines}
 
-## 4. 构图、网格、间距与留白
+## 5. 构图、网格、间距与留白
 
 - **信息密度**：${fmtRule(a.layout?.density)}
 - **留白**：${fmtRule(a.layout?.whitespace)}
 - **视觉重心**：${fmtRule(a.layout?.visualFocus)}
 - **网格与对称**：${fmtRule(a.layout?.grid)}
 
-## 5. 形状、轮廓、边框与圆角
+## 6. 形状、轮廓、边框与圆角
 
 - **圆角**：${fmtRule(a.shapes?.corners)}
 - **边框与线条**：${fmtRule(a.shapes?.borders)}
 - **形态语言**：${fmtRule(a.shapes?.form)}
 
-## 6. 图像、摄影或插画语言
+## 7. 图像、摄影或插画语言
 
 - **图像类型**：${fmtRule(a.imagery?.type)}
 - **裁切方式**：${fmtRule(a.imagery?.crop)}
 - **处理方式**：${fmtRule(a.imagery?.treatment)}
 
-## 7. 材质、纹理和装饰规则
+## 8. 材质、纹理和装饰规则
 
 - **阴影**：${fmtRule(a.effects?.shadow)}
 - **纹理与材质**：${fmtRule(a.effects?.texture)}
 
-## 8. 组件与版式母题
+## 9. 组件与版式母题
 
 ${(a.components ?? []).length > 0 ? a.components.map((c) => `- ${fmtRule(c)}`).join("\n") : "- （无明显重复组件）"}
 
-## 9. 必须保持的视觉特征
+## 10. 必须保持的视觉特征
 
 ${fmtList(a.mustKeep)}
 
-## 10. 明确禁止项
+## 11. 明确禁止项
 
 ${fmtList(a.avoid)}
 
-## 11. 提供给 AI 的通用执行规则
+## 12. 提供给 AI 的通用执行规则
 
 - 以上所有规则适用于任何设计载体；执行时优先保证「必须保持的视觉特征」。
 - 严格避免「明确禁止项」中列出的所有做法。
@@ -256,12 +304,12 @@ ${fmtList(a.avoid)}
 - 具体页面结构、文案与功能需求以用户当次任务描述为准，本规范不提供。
 - 不要复刻任何具体品牌的 Logo、角色或受保护的独特图形。
 
-## 12. 来源说明与置信度
+## 13. 来源说明与置信度
 
 - 本规范由参考图片分析生成；标注［推断］的规则为 AI 归纳，非图片中直接可见。
 - 置信度为「低」的规则建议人工确认后再使用。
 
-## 13. 不确定项
+## 14. 不确定项
 
 ${fmtList(a.uncertainties)}
 `;

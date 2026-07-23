@@ -2,6 +2,8 @@
 
 import { ChangeEvent, DragEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "./auth-provider";
+import { AuthenticatedImage } from "./authenticated-image";
 
 type Confidence = "high" | "medium" | "low";
 
@@ -38,6 +40,11 @@ interface StyleResult {
   effects?: {
     shadow?: VisualRule;
     texture?: VisualRule;
+  };
+  designLanguage?: {
+    movement: string;
+    confidence: Confidence;
+    rationale: string;
   };
   markdown: string;
   prompt?: string;
@@ -131,6 +138,7 @@ export default function Home() {
   const [toastVisible, setToastVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { authFetch } = useAuth();
 
   const canAnalyze = files.length > 0 && stage !== "uploading" && stage !== "analyzing" && stage !== "saving";
 
@@ -164,7 +172,7 @@ export default function Home() {
 
   async function loadStyles() {
     try {
-      const res = await fetch("/api/styles", { cache: "no-store" });
+      const res = await authFetch("/api/styles", { cache: "no-store" });
       if (!res.ok) throw new Error("资料库读取失败");
       const data = await res.json();
       const nextStyles: StyleResult[] = data.styles ?? [];
@@ -216,7 +224,7 @@ export default function Home() {
       setStage("uploading");
       const form = new FormData();
       files.forEach((file) => form.append("files", file));
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
+      const uploadRes = await authFetch("/api/upload", { method: "POST", body: form });
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok || !uploadData.images?.length) {
         throw new Error(uploadData.error ?? "图片上传失败");
@@ -225,7 +233,7 @@ export default function Home() {
 
       const imageIds = uploadData.images.map((image: UploadedImage) => image.imageId);
       setStage("analyzing");
-      const analysisRes = await fetch("/api/analyze", {
+      const analysisRes = await authFetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageIds, primaryImageIds: [imageIds[0]] }),
@@ -248,7 +256,7 @@ export default function Home() {
       }
 
       setStage("saving");
-      const saveRes = await fetch("/api/styles", {
+      const saveRes = await authFetch("/api/styles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(analysis),
@@ -610,9 +618,9 @@ function ArchiveScreen({
                 </span>
                 <div className="folder-content">
                   {sourceImageId ? (
-                    <img
+                    <AuthenticatedImage
+                      imageId={sourceImageId}
                       className="slice-source-image"
-                      src={`/api/images/${sourceImageId}`}
                       alt={`${style.name} 原始参考图`}
                       loading="lazy"
                     />
@@ -709,6 +717,14 @@ function DetailScreen({
         <section className="summary-block">
           <h1>{style.name}</h1>
           <p>{style.summary}</p>
+          {style.designLanguage && style.designLanguage.movement !== "无明显流派" && (
+            <div className="movement-badge">
+              <span className="movement-label">{style.designLanguage.movement}</span>
+              <span className="movement-confidence">
+                置信度：{style.designLanguage.confidence === "high" ? "高" : style.designLanguage.confidence === "medium" ? "中" : "低"}
+              </span>
+            </div>
+          )}
           {style.fallback && <span className="fallback-pill">DEMO · {style.fallbackReason ?? "fallback"}</span>}
         </section>
 
@@ -726,7 +742,7 @@ function DetailScreen({
         </section>
 
         <section className="detail-section prompt-section">
-          <h2 className="section-label">后期处理风格</h2>
+          <h2 className="section-label">可复用设计风格提示词</h2>
           <div className={`prompt-card ${!promptExpanded && isLongPrompt ? "is-clamped" : ""}`}>
             <p>{visiblePrompt}</p>
             {!promptExpanded && isLongPrompt && <span className="prompt-fade" aria-hidden="true" />}
@@ -749,14 +765,14 @@ function DetailScreen({
                 setPromptExpanded(false);
               }}
             >
-              {showFullPrompt ? "← 精简版风格参数" : "查看完整风格指南 →"}
+              {showFullPrompt ? "← 精简风格参数" : "查看完整设计语言 →"}
             </button>
           )}
         </section>
 
         <div className="download-actions">
           <button type="button" onClick={handleCopy} className={copied ? "copied" : ""}>
-            <span>{copied ? "✓ 已复制" : "📋 复制风格参数"}</span>
+            <span>{copied ? "✓ 已复制" : "📋 复制设计提示词"}</span>
           </button>
           <button
             type="button"

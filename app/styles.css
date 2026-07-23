@@ -693,3 +693,29 @@ button {
   border-color: var(--ink);
   color: var(--ink);
 }
+
+/* ---------- Design Movement Badge ---------- */
+.movement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--space-sm);
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--sky) 12%, transparent);
+  border: 1.2px solid color-mix(in srgb, var(--sky) 30%, transparent);
+  border-radius: 20px;
+}
+
+.movement-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--sky);
+  letter-spacing: 0.01em;
+}
+
+.movement-confidence {
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--muted) 30%, transparent);
+}

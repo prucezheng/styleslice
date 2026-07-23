@@ -1,16 +1,19 @@
 /**
  * POST /api/upload
- * 接收多张图片（multipart/form-data，字段名 files）
- * 限制：JPG/PNG/WebP，单张 ≤ 20MB，一次 ≤ 10 张
- * 返回：{ images: [{ imageId, name, size }] }
+ * 接收图片（multipart/form-data，字段名 files），存入用户隔离的私有 Storage。
  */
 import { NextRequest, NextResponse } from "next/server";
-import { saveUpload, extForMime } from "@/lib/store";
+import { getRequestAuth, isSupabaseConfigured } from "@/lib/auth-server";
+import { saveUpload, saveUploadLocal, extForMime } from "@/lib/store";
 
 const MAX_SIZE = 20 * 1024 * 1024;
 const MAX_COUNT = 1;
 
 export async function POST(req: NextRequest) {
+  const auth = await getRequestAuth(req);
+  if (!auth.ok) return auth.response;
+  const { userId, supabase } = auth;
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -39,11 +42,12 @@ export async function POST(req: NextRequest) {
       continue;
     }
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { imageId, url } = await saveUpload(buffer, file.type);
-    images.push({ imageId, url, name: file.name, size: file.size });
+    const result = isSupabaseConfigured()
+      ? await saveUpload(supabase, userId, buffer, file.type)
+      : await saveUploadLocal(userId, buffer, file.type);
+    images.push({ imageId: result.imageId, url: result.url, name: file.name, size: file.size });
   }
 
-  // 全部失败时不应返回成功
   if (images.length === 0) {
     return NextResponse.json(
       { error: "没有可上传的图片", images, failures },

@@ -1,63 +1,71 @@
 /**
  * 演示兜底数据：AI 调用失败或 DEMO_MODE=1 时使用。
- * 数据聚焦于后期处理手法（调色/光影/质感），不含任何画面内容/物体/地标描述。
+ * 数据聚焦于设计语言（色彩策略/空间/形态/质感/流派），不含画面内容描述。
  */
 import type { StyleAnalysis } from "./schema";
 
 export const DEMO_ANALYSIS: StyleAnalysis = {
-  name: "暖调褪色胶片风",
+  name: "瑞士理性几何风",
   summary:
-    "暖调偏橙 + 低饱和褪色 + 细颗粒的胶片后期风格，画面柔和安静，有轻微暗角。",
+    "克制的中性色板 + 严格的网格系统 + 硬边几何形态 + 大面积留白，典型的瑞士国际主义设计语言，强调理性秩序与功能性。",
   keywords: [
-    { word: "暖调", meaning: "色温偏暖，画面整体带暖橙色调，白平衡偏移约+10~15" },
-    { word: "褪色", meaning: "黑色端提升，暗部偏灰不发死黑，营造旧照片褪色感" },
-    { word: "细颗粒", meaning: "全画面叠加均匀细颗粒噪点，模拟ISO 400胶片质感" },
-    { word: "柔和高光", meaning: "高光区域柔和不过曝，亮部保留细节" },
-    { word: "暗角", meaning: "四角轻微压暗，将注意力引向画面中心" },
+    { word: "网格系统", meaning: "基于严格数学网格的版式结构，模块化对齐，信息层级清晰" },
+    { word: "无衬线几何", meaning: "字体倾向几何化无衬线体，字母结构基于圆形和直线" },
+    { word: "呼吸感留白", meaning: "大量负空间，元素间距宽松，留白作为主动设计元素" },
+    { word: "不对称平衡", meaning: "通过元素体量对比而非对称实现视觉平衡" },
+    { word: "功能优先", meaning: "装饰极简，所有视觉元素服务于信息传达效率" },
   ],
   colors: [
-    { name: "暖米白", hex: "#F5F1EA", role: "background", proportion: "约 60%", confidence: "high", evidenceImages: [1] },
-    { name: "深褐灰", hex: "#3C312A", role: "primary", proportion: "约 25%", confidence: "high", evidenceImages: [1] },
-    { name: "暗橙", hex: "#C47A4A", role: "accent", proportion: "约 5%", confidence: "medium", evidenceImages: [1] },
-    { name: "灰褐", hex: "#8A7D72", role: "secondary", proportion: "约 10%", confidence: "medium", evidenceImages: [1] },
+    { name: "冷调白", hex: "#F7F8FA", role: "background", proportion: "约 65%", confidence: "high", evidenceImages: [1] },
+    { name: "炭黑", hex: "#1A1C20", role: "primary", proportion: "约 20%", confidence: "high", evidenceImages: [1] },
+    { name: "中灰", hex: "#8C9096", role: "secondary", proportion: "约 10%", confidence: "high", evidenceImages: [1] },
+    { name: "信号红", hex: "#E03A30", role: "accent", proportion: "约 5%", confidence: "medium", evidenceImages: [1] },
   ],
   layout: {
-    density: { value: "画面元素稀疏，留白充足", confidence: "high", evidenceImages: [1], sourceType: "direct" },
-    whitespace: { value: "大面积留白，内容区域占比偏低", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
-    visualFocus: { value: "视觉重心偏画面中央偏上", confidence: "medium", evidenceImages: [1], sourceType: "inferred" },
-    grid: { value: "宽松的非对称构图", confidence: "low", evidenceImages: [1], sourceType: "inferred" },
+    density: { value: "信息密度极低，大量留白，单屏信息量克制", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    whitespace: { value: "留白作为核心设计元素，至少占画面 50% 以上", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    visualFocus: { value: "左上到右下的对角线视觉流，主信息居左上", confidence: "medium", evidenceImages: [1], sourceType: "inferred" },
+    grid: { value: "严格的模块化网格，12 或 16 列等分，所有元素对齐网格基线", confidence: "high", evidenceImages: [1], sourceType: "inferred" },
   },
   shapes: {
-    corners: { value: "直角为主，极微小圆角", confidence: "high", evidenceImages: [1], sourceType: "direct" },
-    borders: { value: "细线分割，靠留白而非边框区分区域", confidence: "high", evidenceImages: [1], sourceType: "direct" },
-    form: { value: "纯几何构成，简洁利落", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    corners: { value: "纯直角，无任何圆角处理", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    borders: { value: "极细 1px 分割线或无分割线，靠留白和颜色区分区域", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    form: { value: "纯几何矩形构成，拒绝有机曲线和装饰性形状", confidence: "high", evidenceImages: [1], sourceType: "direct" },
   },
   imagery: {
-    type: { value: "自然光摄影", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
-    crop: { value: "4:3裁切，主体偏上居中", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
-    treatment: { value: "降饱和 + 色温偏暖偏移 + 均匀细颗粒噪点叠加", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
+    type: { value: "无图像或极少量几何抽象图形，以文字排版为核心视觉", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
+    crop: { value: "如有图像采用出血裁切，打破网格边界", confidence: "low", evidenceImages: [1], sourceType: "inferred" },
+    treatment: { value: "高对比度黑白或低饱和处理，图像退为背景层次", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
   },
   effects: {
-    shadow: { value: "几乎无投影，画面扁平", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
-    texture: { value: "轻微纸纹质感 + 细颗粒噪点", confidence: "medium", evidenceImages: [1], sourceType: "direct" },
+    shadow: { value: "完全无投影，纯扁平化", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    texture: { value: "光滑无纹理，纯色平面", confidence: "high", evidenceImages: [1], sourceType: "direct" },
   },
   components: [
-    { value: "简洁矩形区块，留白分隔", confidence: "high", evidenceImages: [1], sourceType: "direct" },
+    { value: "严格网格对齐的文本块 + 细线分隔 + 小面积强调色块", confidence: "high", evidenceImages: [1], sourceType: "direct" },
   ],
+  designLanguage: {
+    movement: "瑞士国际主义",
+    confidence: "high",
+    rationale: "中性色板+严格网格+无衬线倾向+大面积留白+去装饰化，完全符合瑞士国际主义平面设计流派的核心特征",
+  },
   mustKeep: [
-    "暖色温偏移（偏橙/偏黄）",
-    "整体低饱和度，色彩收敛",
-    "暗部褪色（黑色端提升，不压死黑）",
-    "均匀细颗粒噪点",
+    "严格网格对齐系统",
+    "大面积留白（负空间占比 50% 以上）",
+    "纯直角，无圆角",
+    "色彩克制（中性色为主，单色强调）",
+    "完全扁平化无投影",
   ],
   avoid: [
-    "纯白 #FFFFFF 或纯黑 #000000",
-    "高饱和强调色（亮蓝、荧光绿、紫红）",
-    "厚重投影、多层阴影",
-    "锐利高清晰度（破坏柔和感）",
-    "大圆角、气泡形、渐变背景",
+    "圆角、气泡形、有机曲线",
+    "高饱和多彩色板",
+    "渐变背景或渐变元素",
+    "投影、模糊、毛玻璃等深度效果",
+    "装饰性图案或纹理",
+    "居中对齐的对称版式",
   ],
   uncertainties: [
-    "颗粒强度为推断值，实际需在修图软件中微调",
+    "网格具体列数（12/16）无法从单图中确定",
+    "字体未显式识别，几何无衬线倾向为推断",
   ],
 };

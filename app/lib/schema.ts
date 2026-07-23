@@ -51,6 +51,13 @@ export interface EffectSpec {
   texture: Rule; // 渐变/玻璃/纸张/噪点等
 }
 
+/** 设计流派/运动识别 */
+export interface DesignLanguage {
+  movement: string; // 识别到的设计流派名称，如"包豪斯""孟菲斯""瑞士国际主义"
+  confidence: Confidence;
+  rationale: string; // 匹配依据
+}
+
 /** AI 分析输出的核心结构（/api/analyze 的返回，保存前） */
 export interface StyleAnalysis {
   name: string; // 风格名称（AI 生成，用户可改）
@@ -62,6 +69,7 @@ export interface StyleAnalysis {
   imagery: ImagerySpec;
   effects: EffectSpec;
   components: Rule[]; // 反复出现的组件/版式母题
+  designLanguage?: DesignLanguage; // 识别到的设计流派（可选，非所有图片都有明显流派）
   mustKeep: string[]; // 必须保持的视觉特征
   avoid: string[]; // 明确禁止项
   uncertainties: string[]; // 不确定项
@@ -118,6 +126,7 @@ export const ANALYSIS_JSON_TEMPLATE = `{
     "texture": { "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." }
   },
   "components": [{ "value": "...", "confidence": "...", "evidenceImages": [1], "sourceType": "..." }],
+  "designLanguage": { "movement": "识别到的设计流派（包豪斯/孟菲斯/瑞士国际主义/粗野主义/极简主义等，无明显流派时填null）", "confidence": "high | medium | low", "rationale": "为什么判断为该流派的依据" },
   "mustKeep": ["必须保持的视觉特征"],
   "avoid": ["明确禁止项"],
   "uncertainties": ["不确定项"]
