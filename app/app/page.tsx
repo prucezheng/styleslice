@@ -41,6 +41,7 @@ interface StyleResult {
   };
   markdown: string;
   prompt?: string;
+  promptShort?: string;
   fallback?: boolean;
   fallbackReason?: string;
   source?: {
@@ -100,6 +101,22 @@ async function copyToClipboard(text: string) {
   }
 }
 
+/** 弹出底部 toast，3 秒后自动消失 */
+function showToast(
+  msg: string,
+  setVisible: (v: boolean) => void,
+  setMsg: (m: string) => void,
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>
+) {
+  if (timerRef.current) clearTimeout(timerRef.current);
+  setMsg(msg);
+  setVisible(true);
+  timerRef.current = setTimeout(() => {
+    setVisible(false);
+    timerRef.current = null;
+  }, 3000);
+}
+
 export default function Home() {
   const [view, setView] = useState<View>("home");
   const [files, setFiles] = useState<File[]>([]);
@@ -110,9 +127,22 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canAnalyze = files.length > 0 && stage !== "uploading" && stage !== "analyzing" && stage !== "saving";
+
+  function resetAll() {
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    setFiles([]);
+    setPreviews([]);
+    setUploaded([]);
+    setStage("idle");
+    setSelectedStyle(null);
+    setMessage("");
+  }
 
   useEffect(() => {
     loadStyles();
@@ -146,9 +176,21 @@ export default function Home() {
 
   function chooseFiles(nextFiles: File[]) {
     previews.forEach((url) => URL.revokeObjectURL(url));
-    const accepted = nextFiles.filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type));
-    setFiles(accepted.slice(0, 10));
-    setPreviews(accepted.slice(0, 10).map((file) => URL.createObjectURL(file)));
+    const accepted = nextFiles.filter((file) =>
+      ["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    );
+    // 只取第一张图片（替换模式，不追加）
+    const single = accepted[0] ?? null;
+    if (single) {
+      setFiles([single]);
+      setPreviews([URL.createObjectURL(single)]);
+      if (nextFiles.length > 1) {
+        showToast("当前仅支持单张图片分析，已取第一张", setToastVisible, setToastMessage, toastTimerRef);
+      }
+    } else {
+      setFiles([]);
+      setPreviews([]);
+    }
     setUploaded([]);
     setMessage(accepted.length === nextFiles.length ? "" : "已忽略不支持的文件，仅支持 JPG / PNG / WebP");
     setStage("idle");
@@ -219,8 +261,9 @@ export default function Home() {
       setView("detail");
       await loadStyles();
     } catch (err) {
-      setStage("idle");
-      setMessage(err instanceof Error ? err.message : "分析失败，请重试");
+      resetAll();
+      const errMsg = err instanceof Error ? err.message : "分析失败，请重试";
+      showToast(errMsg, setToastVisible, setToastMessage, toastTimerRef);
     }
   }
 
@@ -272,6 +315,8 @@ export default function Home() {
           <AnalyzingOverlay stage={stage} />
         )}
       </section>
+
+      {toastVisible && <ErrorToast message={toastMessage} />}
     </main>
   );
 }
@@ -334,7 +379,6 @@ function HomeScreen({
             className="file-input"
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            multiple
             onChange={onFileInput}
           />
           {previews.length ? (
@@ -346,8 +390,8 @@ function HomeScreen({
           ) : (
             <div className="upload-empty">
               <img className="upload-add-icon" src="/icons/add.png" alt="" aria-hidden="true" />
-              <strong>Upload Reference Images</strong>
-              <small>Drag and drop your journal sketches or inspiration here.</small>
+              <strong>Upload a Reference Image</strong>
+              <small>Drag and drop a design reference or inspiration here.</small>
             </div>
           )}
         </div>
@@ -355,11 +399,11 @@ function HomeScreen({
         <div className="file-readout" aria-live="polite">
           {files.length > 0 && (
             <>
-              <strong>{files.length} image{files.length > 1 ? "s" : ""} selected</strong>
-              <span>{files.map((file) => `${file.name} · ${formatBytes(file.size)}`).join(" / ")}</span>
+              <strong>1 image selected</strong>
+              <span>{files[0].name} · {formatBytes(files[0].size)}</span>
             </>
           )}
-          {uploaded.length > 0 && <span>{uploaded.length} images imported to analysis queue.</span>}
+          {uploaded.length > 0 && <span>Image imported to analysis queue.</span>}
           {message && <span className="error-text">{message}</span>}
         </div>
       </div>
@@ -417,6 +461,16 @@ function AnalyzingOverlay({ stage }: { stage: Stage }) {
           ))}
         </ol>
       </div>
+    </div>
+  );
+}
+
+/** 底部错误 toast，3 秒后自动消失，手绘风格 */
+function ErrorToast({ message }: { message: string }) {
+  return (
+    <div className="error-toast" role="alert" aria-live="assertive">
+      <span className="error-toast-icon" aria-hidden="true">⚠</span>
+      <span>{message}</span>
     </div>
   );
 }
@@ -621,14 +675,21 @@ function DetailScreen({
 }) {
   const [boardOpen, setBoardOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [promptExpanded, setPromptExpanded] = useState(false);
+  const [showFullPrompt, setShowFullPrompt] = useState(false);
   const paletteName = `${style.name || "styleslice"}_palette.json`.replace(/[\\/:*?"<>|]/g, "_");
-  const promptText = style.prompt ?? style.markdown;
-  // 缩略展示：约 4 行以内无需展开按钮
-  const isLongPrompt = promptText.length > 180;
+  // 默认展示精简版提示词；展开后显示完整版
+  const shortPrompt = style.promptShort || style.prompt || style.markdown;
+  const fullPrompt = style.prompt || style.markdown;
+  const displayPrompt = showFullPrompt ? fullPrompt : shortPrompt;
+  // 精简版始终完整显示，完整版超过 180 字才折叠
+  const isLongPrompt = showFullPrompt && fullPrompt.length > 180;
+  const [promptExpanded, setPromptExpanded] = useState(false);
+  const visiblePrompt = isLongPrompt && !promptExpanded
+    ? fullPrompt.slice(0, 180) + "…"
+    : displayPrompt;
 
   const handleCopy = async () => {
-    const ok = await copyToClipboard(promptText);
+    const ok = await copyToClipboard(displayPrompt);
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -667,7 +728,7 @@ function DetailScreen({
         <section className="detail-section prompt-section">
           <h2 className="section-label">AI 生图提示词</h2>
           <div className={`prompt-card ${!promptExpanded && isLongPrompt ? "is-clamped" : ""}`}>
-            <p>{promptText}</p>
+            <p>{visiblePrompt}</p>
             {!promptExpanded && isLongPrompt && <span className="prompt-fade" aria-hidden="true" />}
           </div>
           {isLongPrompt && (
@@ -676,7 +737,19 @@ function DetailScreen({
               type="button"
               onClick={() => setPromptExpanded((open) => !open)}
             >
-              {promptExpanded ? "收起 ▲" : `展开全文（${Math.round(promptText.length / 100) * 100} 字）▼`}
+              {promptExpanded ? "收起 ▲" : `展开全文（${Math.round(fullPrompt.length / 100) * 100} 字）▼`}
+            </button>
+          )}
+          {fullPrompt !== shortPrompt && (
+            <button
+              className="prompt-version-toggle"
+              type="button"
+              onClick={() => {
+                setShowFullPrompt((v) => !v);
+                setPromptExpanded(false);
+              }}
+            >
+              {showFullPrompt ? "← 精简版提示词" : "查看完整提示词 →"}
             </button>
           )}
         </section>

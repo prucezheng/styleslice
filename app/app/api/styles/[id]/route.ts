@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getStyle, updateStyle, deleteStyle } from "@/lib/store";
-import { renderMarkdown, renderPrompt } from "@/lib/md";
+import { renderMarkdown, renderPrompt, renderPromptShort } from "@/lib/md";
 import type { StyleAnalysis } from "@/lib/schema";
 
 type Ctx = { params: { id: string } };
@@ -28,12 +28,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   delete patch.updatedAt;
   delete patch.markdown;
   delete patch.prompt;
+  delete patch.promptShort;
   const current = await getStyle(params.id);
   if (!current) return NextResponse.json({ error: "风格不存在" }, { status: 404 });
   const merged = { ...current, ...patch };
-  const { markdown: _m, prompt: _p, source: _s, ...analysis } = merged;
+  const { markdown: _m, prompt: _p, promptShort: _ps, source: _s, ...analysis } = merged;
   patch.markdown = renderMarkdown(analysis as StyleAnalysis);
   patch.prompt = renderPrompt(analysis as StyleAnalysis);
+  patch.promptShort = renderPromptShort(analysis as StyleAnalysis);
   const updated = await updateStyle(params.id, patch);
   if (!updated) return NextResponse.json({ error: "风格不存在" }, { status: 404 });
   return NextResponse.json(updated);

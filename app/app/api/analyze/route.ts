@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImages } from "@/lib/doubao";
-import { renderMarkdown, renderPrompt } from "@/lib/md";
+import { renderMarkdown, renderPrompt, renderPromptShort } from "@/lib/md";
 import { readUpload, isValidId } from "@/lib/store";
 import { DEMO_ANALYSIS } from "@/lib/demo";
 import type { StyleAnalysis } from "@/lib/schema";
@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
   if (!body || !Array.isArray(body.imageIds) || body.imageIds.length === 0) {
     return NextResponse.json({ error: "缺少 imageIds" }, { status: 400 });
   }
-  const imageIds: string[] = body.imageIds.slice(0, 10);
+  if (body.imageIds.length > 1) {
+    return NextResponse.json({ error: "当前仅支持单张图片分析" }, { status: 400 });
+  }
+  const imageIds: string[] = body.imageIds.slice(0, 1);
   const primaryImageIds: string[] = body.primaryImageIds ?? [];
 
   let analysis: StyleAnalysis;
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
     ...analysis,
     markdown: renderMarkdown(analysis),
     prompt: renderPrompt(analysis),
+    promptShort: renderPromptShort(analysis),
     source: { imageIds, primaryImageIds },
     fallback,
   };
