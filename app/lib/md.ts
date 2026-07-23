@@ -24,186 +24,154 @@ function fmtList(items: string[]): string {
 }
 
 /**
- * JSON → 照片风格迁移精简提示词
- * 描述参考图的后期处理/滤镜/调色手法，用户可复制到修图工具中对其他照片套用相同风格。
- * 不描述照片内容（拍的是什么），只描述视觉风格（怎么P的）。
+ * JSON → 后期风格精简参数（类似 Lightroom 预设 / VSCO 滤镜名）
+ * 纯后期处理指令，不描述照片内容。用户复制即可用于修图。
  */
 export function renderPromptShort(a: StyleAnalysis): string {
-  const parts: string[] = [];
+  const segments: string[] = [];
 
-  // 开场：风格名 + 一句话定义
-  parts.push(`【${a.name}】${a.summary}`);
+  // 风格名
+  segments.push(`【${a.name}】`);
 
-  // 调色（色彩倾向）
-  const colorTerms: string[] = [];
-  for (const c of a.colors ?? []) {
-    if (c.role === "background" && /白|米|奶|灰|浅/.test(c.name)) colorTerms.push(`底色${c.name}`);
-    if (c.role === "accent") colorTerms.push(`强调${c.name}`);
-  }
-  const paletteNames = (a.colors ?? []).map((c) => c.name).join("+");
-  if (paletteNames && !colorTerms.length) {
-    colorTerms.push(`色调${paletteNames}`);
-  }
+  // 调色维度
+  const colorParts: string[] = [];
+  const fullText = a.summary + (a.keywords ?? []).map((k) => k.meaning + k.word).join("");
+
+  // 色温
+  if (/暖/.test(fullText)) colorParts.push("暖调");
+  else if (/冷/.test(fullText)) colorParts.push("冷调");
 
   // 饱和度
-  const summary = a.summary + (a.keywords ?? []).map((k) => k.meaning).join("");
-  if (/低饱和|降饱|褪色|素|淡雅|灰调/.test(summary)) colorTerms.push("低饱和");
-  if (/高饱和|鲜艳|浓郁|浓烈/.test(summary)) colorTerms.push("高饱和");
-  if (/暖|黄|橙|红|棕/.test(paletteNames + summary)) colorTerms.push("暖调");
-  if (/冷|蓝|青|绿|紫/.test(paletteNames + summary)) colorTerms.push("冷调");
+  if (/低饱|褪色|降饱|淡雅/.test(fullText)) colorParts.push("低饱和");
+  else if (/高饱|鲜艳|浓郁/.test(fullText)) colorParts.push("高饱和");
 
-  if (colorTerms.length) parts.push(colorTerms.join("+"));
-
-  // 后期效果
-  const effectTerms: string[] = [];
-  const treatment = a.imagery?.treatment?.value ?? "";
-  const texture = a.effects?.texture?.value ?? "";
-  const shadow = a.effects?.shadow?.value ?? "";
-  const combined = treatment + texture + shadow;
-
-  if (/颗粒|噪点/.test(combined)) effectTerms.push("加颗粒");
-  if (/胶片|胶卷|底片/.test(combined)) effectTerms.push("胶片感");
-  if (/柔光|柔和/.test(combined)) effectTerms.push("柔光");
-  if (/褪色|褪|老旧/.test(combined)) effectTerms.push("褪色处理");
-  if (/高对比|反差/.test(combined)) effectTerms.push("强对比");
-  if (/低对比/.test(combined)) effectTerms.push("低对比");
-  if (/暗角|晕影|vignette/i.test(combined)) effectTerms.push("暗角");
-  if (/模糊|柔焦/.test(combined)) effectTerms.push("柔焦");
-  if (/锐|清晰|锐化/.test(combined)) effectTerms.push("锐化");
-  if (/磨皮|光滑/.test(combined)) effectTerms.push("磨皮");
-  if (texture && effectTerms.length < 3 && !/无/.test(texture)) {
-    const t = texture.replace(/方面|画面|处理|方式/g, "").trim();
-    if (t.length < 10 && !effectTerms.some((e) => t.includes(e.replace("加", "")))) {
-      effectTerms.push(t);
-    }
+  // 主要色系（仅取1-2个，用抽象词）
+  const paletteHints: string[] = [];
+  for (const c of a.colors ?? []) {
+    const n = c.name;
+    if (/橙|橘/.test(n)) paletteHints.push("偏橙");
+    if (/蓝|青/.test(n)) paletteHints.push("偏蓝");
+    if (/黄|金/.test(n)) paletteHints.push("偏黄");
+    if (/绿/.test(n)) paletteHints.push("偏绿");
+    if (/红/.test(n)) paletteHints.push("偏红");
+    if (/紫/.test(n)) paletteHints.push("偏紫");
   }
+  // 去重取前2个
+  const seen = new Set<string>();
+  const uniqueHints: string[] = [];
+  for (const h of paletteHints) {
+    if (!seen.has(h)) { seen.add(h); uniqueHints.push(h); }
+  }
+  colorParts.push(...uniqueHints.slice(0, 2));
 
-  if (effectTerms.length) parts.push(effectTerms.join("+"));
+  if (colorParts.length) segments.push(colorParts.join("+"));
 
-  // 裁切/构图
-  const cropTerms: string[] = [];
+  // 光影维度
+  const lightParts: string[] = [];
+  if (/高对比|强对比|反差/.test(fullText)) lightParts.push("强对比");
+  else if (/低对比|柔/.test(fullText)) lightParts.push("柔对比");
+  if (/暗角|晕影/.test(fullText)) lightParts.push("暗角");
+  if (/褪色|fade|黑色提升/.test(fullText)) lightParts.push("褪色");
+  if (/过曝|高光|提亮/.test(fullText)) lightParts.push("高光偏亮");
+  if (/欠曝|暗调|低曝/.test(fullText)) lightParts.push("暗调");
+  if (lightParts.length) segments.push(lightParts.join("+"));
+
+  // 质感维度
+  const textureParts: string[] = [];
+  const combined = (a.imagery?.treatment?.value ?? "") + (a.effects?.texture?.value ?? "") + (a.effects?.shadow?.value ?? "");
+  if (/颗粒|噪点/.test(combined)) textureParts.push("颗粒");
+  if (/胶片/.test(combined)) textureParts.push("胶片感");
+  if (/柔焦|模糊/.test(combined)) textureParts.push("柔焦");
+  if (/锐/.test(combined)) textureParts.push("锐化");
+  if (/纸纹|纸感/.test(combined)) textureParts.push("纸纹");
+  if (/磨皮|光滑/.test(combined)) textureParts.push("磨皮");
+  if (textureParts.length) segments.push(textureParts.join("+"));
+
+  // 裁切
   const crop = a.imagery?.crop?.value ?? "";
-  if (/4:3|4：3/.test(crop)) cropTerms.push("4:3裁切");
-  else if (/3:2|3：2/.test(crop)) cropTerms.push("3:2裁切");
-  else if (/16:9|16：9/.test(crop)) cropTerms.push("16:9裁切");
-  else if (/1:1|1：1|正方/.test(crop)) cropTerms.push("1:1裁切");
-  if (/居中/.test(crop)) cropTerms.push("主体居中");
-  if (/偏上/.test(crop)) cropTerms.push("主体偏上");
-  if (cropTerms.length) parts.push(cropTerms.join("+"));
+  if (/4:3|4：3/.test(crop)) segments.push("4:3");
+  else if (/3:2|3：2/.test(crop)) segments.push("3:2");
+  else if (/16:9|16：9/.test(crop)) segments.push("16:9");
+  else if (/1:1|1：1/.test(crop)) segments.push("1:1");
 
-  // 亮度/曝光
-  const lightTerms: string[] = [];
-  if (/过曝|亮|白|高调/.test(combined + summary)) lightTerms.push("偏高曝光");
-  if (/暗|低曝|低调/.test(combined + summary)) lightTerms.push("偏低曝光");
-  if (lightTerms.length) parts.push(lightTerms.join("+"));
-
-  // 去重&拼接
-  let result = parts.join(" | ");
-  if (result.length > 160) {
-    result = result.slice(0, 157).replace(/ | [^|]*$/, "") + "…";
-  }
-  return result;
+  return segments.join(" | ");
 }
 
 /**
  * JSON → 照片后期处理完整指南
- * 分为调色、光影、质感、裁切四个维度，每一行都是可执行的操作指令。
- * 目标是：用户把这份指南 + 任意照片给 AI 修图工具，都能得到相似风格的成片。
+ * 按后期维度组织：白平衡/色调 → 饱和度 → 对比度/光影 → 质感/纹理 → 裁切
+ * 每一行是可执行操作，不描述画面内容（不出现物体/地标/场景名）
  */
 export function renderPrompt(a: StyleAnalysis): string {
-  const parts: string[] = [];
+  const sections: string[] = [];
 
   // 开场
-  parts.push(
-    `## ${a.name} — 照片后期风格指南\n\n> ${a.summary}\n\n将以下风格参数套用到你的照片上即可获得相似效果。本指南描述的是**后期处理手法**，不涉及原片内容。`
+  sections.push(
+    `## ${a.name}\n\n> ${a.summary}\n\n将以下后期参数套用到任意照片即可获得相似风格。**本指南只含后期处理手法，不含画面内容描述。**`
   );
 
-  // 1. 调色
-  const colors = a.colors ?? [];
-  if (colors.length > 0) {
-    parts.push(`### 调色`);
-    const colorInstructions: string[] = [];
-    for (const c of colors) {
-      if (c.role === "background") colorInstructions.push(`- 底色倾向：${c.name}（${c.hex}），画面中占比${c.proportion}`);
-      else if (c.role === "primary") colorInstructions.push(`- 主色调：${c.name}（${c.hex}），决定画面整体色温走向`);
-      else if (c.role === "accent") colorInstructions.push(`- 强调色：${c.name}（${c.hex}），仅用于点缀，占比${c.proportion}`);
-      else colorInstructions.push(`- ${c.name}（${c.hex}），占比${c.proportion}`);
-    }
-    // 从 summary/keywords 推断饱和度方向
-    const fullText = a.summary + (a.keywords ?? []).map((k) => k.meaning).join("") + (a.mustKeep ?? []).join("");
-    if (/低饱和|降饱|褪色|淡雅|素|柔和/.test(fullText)) {
-      colorInstructions.push("- 饱和度：整体偏低，颜色温和不刺眼");
-    } else if (/高饱和|鲜艳|浓郁|浓烈|明亮/.test(fullText)) {
-      colorInstructions.push("- 饱和度：偏高，色彩鲜明有冲击力");
-    }
-    parts.push(colorInstructions.join("\n"));
-  }
-
-  // 2. 光影与对比度
-  const treatment = a.imagery?.treatment?.value ?? "";
-  const texture = a.effects?.texture?.value ?? "";
-  const shadow = a.effects?.shadow?.value ?? "";
-  const combined = treatment + texture + shadow + (a.imagery?.type?.value ?? "");
+  const fullText = a.summary + (a.keywords ?? []).map((k) => k.meaning + k.word).join("");
+  const combined = (a.imagery?.treatment?.value ?? "") + (a.effects?.texture?.value ?? "") + (a.effects?.shadow?.value ?? "");
   const avoidAll = (a.avoid ?? []).join("");
 
-  const lightInstructions: string[] = [];
+  // 1. 白平衡与色温
+  const wbItems: string[] = [];
+  if (/暖/.test(fullText)) wbItems.push("- 色温偏暖（+色温），画面整体偏黄/橙");
+  else if (/冷/.test(fullText)) wbItems.push("- 色温偏冷（-色温），画面整体偏蓝/青");
+  if (/偏青/.test(fullText)) wbItems.push("- 高光偏青，阴影偏暖");
+  if (/偏品/.test(fullText)) wbItems.push("- 色调偏品红");
+  if (/偏绿/.test(fullText)) wbItems.push("- 色调偏绿");
+  if (wbItems.length) sections.push(`### 白平衡与色温\n${wbItems.join("\n")}`);
 
-  if (/高对比|反差|强对比|高反差/.test(combined)) lightInstructions.push("- 对比度：偏高，亮部与暗部分明");
-  else if (/低对比|柔和|柔/.test(combined)) lightInstructions.push("- 对比度：偏低，画面柔和过渡");
-  if (/过曝|高光|亮|白色|白/.test(combined + avoidAll)) {
-    lightInstructions.push("- 高光：适当提亮，白色区域可轻微过曝");
-  }
-  if (/暗|阴影|深|黑/.test(combined)) {
-    lightInstructions.push("- 阴影：保留暗部细节，不压死黑");
-  }
-  if (/褪色|fade/.test(combined)) {
-    lightInstructions.push("- 黑色提升（lift blacks）：暗部发灰/发白，营造褪色感");
-  }
-  if (!/投影|阴影/.test(shadow) && /扁平|无投影/.test(shadow + avoidAll)) {
-    lightInstructions.push("- 画面扁平化，无纵深感阴影");
-  }
-  if (lightInstructions.length > 0) {
-    parts.push(`### 光影与对比度\n${lightInstructions.join("\n")}`);
-  }
-
-  // 3. 质感与纹理
-  const textureInstructions: string[] = [];
-  if (/颗粒|噪点/.test(combined)) textureInstructions.push("- 叠加细颗粒噪点（模拟胶片颗粒感）");
-  if (/胶片|胶卷|底片|film/.test(combined)) textureInstructions.push("- 胶片色调曲线：高光偏暖、阴影偏冷");
-  if (/磨皮|光滑|柔肤/.test(combined)) textureInstructions.push("- 皮肤/光滑表面做柔化处理");
-  if (/锐|清晰|sharp/.test(combined)) textureInstructions.push("- 整体锐化，保持画面清晰度");
-  if (/模糊|柔焦|虚化/.test(combined)) textureInstructions.push("- 柔焦或轻微模糊，降低画面锐度");
-  if (/暗角|晕影|vignette/i.test(combined)) textureInstructions.push("- 画面四角加暗角，将视线引向中心");
-  if (/玻璃|毛玻璃/.test(combined)) textureInstructions.push("- 叠玻璃态模糊层");
-  if (/纸|纸质|纸感/.test(combined)) textureInstructions.push("- 叠加轻微纸纹贴图");
-  if (textureInstructions.length > 0) {
-    parts.push(`### 质感与纹理\n${textureInstructions.join("\n")}`);
+  // 2. 调色
+  const colors = a.colors ?? [];
+  if (colors.length > 0) {
+    const cItems: string[] = [];
+    for (const c of colors) {
+      cItems.push(`- ${c.name}（\`${c.hex}\`）— ${c.role === "background" ? "画面大面积底色" : c.role === "primary" ? "主色调" : c.role === "accent" ? "点缀强调" : c.role}，占比${c.proportion}`);
+    }
+    if (/低饱|褪色|降饱|淡雅/.test(fullText)) cItems.push("- 整体饱和度偏低，色彩收敛");
+    else if (/高饱|鲜艳|浓郁/.test(fullText)) cItems.push("- 整体饱和度偏高，色彩鲜明");
+    sections.push(`### 调色\n${cItems.join("\n")}`);
   }
 
-  // 4. 裁切与构图
-  const cropInstructions: string[] = [];
+  // 3. 对比度与光影
+  const lightItems: string[] = [];
+  if (/高对比|强对比|反差/.test(combined)) lightItems.push("- 对比度偏高，明暗交界分明");
+  else if (/低对比|柔/.test(combined)) lightItems.push("- 对比度偏低，明暗过渡柔和");
+  if (/褪色|fade|黑色提升/.test(combined)) lightItems.push("- 黑色端提升（lift blacks），暗部偏灰，褪色感");
+  if (/过曝|高光偏亮|高调/.test(combined + fullText)) lightItems.push("- 高光适当过曝，亮部细节可丢失");
+  if (/欠曝|暗调|低曝/.test(combined + fullText)) lightItems.push("- 整体偏暗，曝光偏低");
+  if (lightItems.length) sections.push(`### 对比度与光影\n${lightItems.join("\n")}`);
+
+  // 4. 质感与纹理
+  const texItems: string[] = [];
+  if (/颗粒|噪点/.test(combined)) texItems.push("- 叠加细颗粒噪点，模拟胶片质感");
+  if (/胶片|胶卷/.test(combined)) texItems.push("- 胶片色调曲线，高光偏暖阴影偏冷");
+  if (/暗角|晕影/.test(combined)) texItems.push("- 四角添加暗角（vignette），引导视线");
+  if (/柔焦|模糊/.test(combined)) texItems.push("- 柔焦处理，降低画面锐度");
+  if (/锐/.test(combined)) texItems.push("- 整体锐化，保持清晰度");
+  if (/磨皮/.test(combined)) texItems.push("- 光滑表面柔化（磨皮）");
+  if (/纸纹|纸感/.test(combined)) texItems.push("- 叠加轻微纸纹/纹理贴图");
+  if (texItems.length) sections.push(`### 质感与纹理\n${texItems.join("\n")}`);
+
+  // 5. 裁切
   const crop = a.imagery?.crop?.value ?? "";
   if (crop) {
-    cropInstructions.push(`- 裁切比例：${crop}`);
-  }
-  if (/居中/.test(crop)) cropInstructions.push("- 构图：主体居中放置");
-  if (/偏上/.test(crop)) cropInstructions.push("- 构图：主体偏上，上方留余量少");
-  if (/偏左/.test(crop)) cropInstructions.push("- 构图：主体偏左");
-  if (cropInstructions.length > 0) {
-    parts.push(`### 裁切与构图\n${cropInstructions.join("\n")}`);
+    sections.push(`### 裁切\n- 裁切比例：${crop}`);
   }
 
-  // 5. 必须保留
+  // 6. 保留
   if ((a.mustKeep ?? []).length) {
-    parts.push(`### 必须保留\n${a.mustKeep.map((s) => `- ${s}`).join("\n")}`);
+    sections.push(`### 必须保留\n${a.mustKeep.map((s) => `- ${s}`).join("\n")}`);
   }
 
-  // 6. 禁止
+  // 7. 避免
   if ((a.avoid ?? []).length) {
-    parts.push(`### 避免\n${a.avoid.map((s) => `- ${s}`).join("\n")}`);
+    sections.push(`### 避免\n${a.avoid.map((s) => `- ${s}`).join("\n")}`);
   }
 
-  return parts.join("\n\n");
+  return sections.join("\n\n");
 }
 
 export function renderMarkdown(a: StyleAnalysis): string {

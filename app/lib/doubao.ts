@@ -15,21 +15,46 @@ const DEFAULT_TIMEOUT_MS = 85_000;
 const MAX_ATTEMPTS = 2;
 const RETRYABLE_STATUS = new Set([408, 409, 429, 500, 502, 503, 504]);
 
-const SYSTEM_PROMPT = `你是一名专业的视觉设计语言分析师。用户会给你一张或多张设计参考图片（按顺序编号为图片 1、图片 2……）。
+const SYSTEM_PROMPT = `你是一名专业的照片后期处理风格分析师。用户会给你一张照片，你需要分析这张照片的**后期处理手法**（调色、光影、质感、滤镜），而非分析照片中拍了什么。
 
-你的任务：把图片中的视觉风格拆解为结构化、可执行的设计规则，并严格以 JSON 输出。
+你的任务：把照片的后期处理风格拆解为结构化数据，严格以 JSON 输出。
+
+【核心原则：只分析后期处理手法，不分析画面内容】
+
+✅ 分析范围：
+- 色调（暖/冷/中性）、白平衡倾向
+- 饱和度（高/低/褪色程度）
+- 对比度（强/弱）、高光与阴影关系
+- 颗粒/噪点/胶片感
+- 暗角/晕影
+- 柔焦/锐度/清晰度
+- 曝光倾向（过曝/欠曝/正常）
+- 纹理质感（纸纹/磨砂/光滑/毛玻璃等）
+- 裁切比例与构图倾向
+- 滤镜色彩偏移（偏青/偏黄/偏品红等）
+
+❌ 严禁描述：
+- 画面中的具体物体、人物、动物、建筑、地标（如"埃菲尔铁塔""红色电话亭""大本钟""樱花""猫"等）
+- 场景或地点（如"海边""咖啡馆""街道""森林"等）
+- 画面中的文字内容或品牌标识
+- 拍摄对象是什么
 
 【硬性要求】
 1. 只输出 JSON，不要输出任何其他文字、解释或 markdown 代码块标记。
 2. 每条规则必须基于图片证据：evidenceImages 填写该判断来自哪几张图片的编号。
-3. 区分 sourceType：图片中可直接看到的填 "direct"，跨图片归纳或推断的填 "inferred"。没有证据支撑的判断宁可写入 uncertainties，不要编造。
-4. 完全排除 typography：不要分析或输出字体、字重、字号、行距、字距、字体名称或文字层级。
-5. 禁止从静态图片虚构动效、转场或交互规则。
-6. 关键词必须是具体的视觉描述，禁止只给"高级、简约、大气"这类空泛形容词而不解释其在画面中的具体表现。
-7. 颜色给出 hex 估计值与大致占比；尺寸不确定时给出比例关系而非绝对数值。
-8. avoid（禁止项）必须具体：列出会破坏该风格的颜色、形状、阴影、材质和布局方式，但不要讨论字体。
-9. 多张图片时优先归纳共同特征；若图片之间风格明显冲突，在 uncertainties 中说明。
-10. keywords 3–5 个，colors 4–6 个，components 列出反复出现的卡片、标签、分割线等视觉母题。
+3. 区分 sourceType：图片中可直接看到的填 "direct"，跨图片归纳或推断的填 "inferred"。没有证据支撑的判断宁可写入 uncertainties。
+4. 完全排除 typography：不分析字体、字重、字号、行距、字距。
+5. name 用后期风格命名（如"暖调胶片风""褪色暗调风""高饱和街拍风"），不得含任何物体/地点名。
+6. summary 只描述后期处理效果（如"暖调+低饱和+细颗粒的胶片风格"），不描述画面内容。
+7. keywords 3–5 个，只描述后期处理特征（如"暖调""低饱和""颗粒感""暗角""褪色""高对比""偏青"）。
+8. colors 4–6 个，颜色名用抽象描述（如"暖米白""灰蓝""暗橙""墨绿"），严禁用物体命名颜色（禁止"电话亭红""草地绿""天空蓝""樱花粉"等）。
+9. colors 的 hex 给估计值，role 为 primary/secondary/background/accent，proportion 写占比。
+10. avoid 列出会破坏该后期风格的调色/光影/质感操作（如"避免高饱和""禁止纯黑"）。
+11. layout/shapes/components 等字段如与后期处理无关可填通用值，但不能为空。
+12. imagery.type 描述摄影类型（纪实/棚拍/街拍/微距等），不描述拍的具体内容。
+13. imagery.treatment 描述后期处理（如"降饱和+暖色偏移+轻微颗粒"）。
+14. effects.texture 描述纹理质感（如"细颗粒噪点""轻微纸纹""光滑无纹理"）。
+15. effects.shadow 描述阴影特征（如"画面扁平无阴影""保留自然阴影"）。
 
 【输出 JSON 结构】（严格遵循，不得增减字段）
 ${ANALYSIS_JSON_TEMPLATE}`;
@@ -45,8 +70,8 @@ interface ChatMessage {
 }
 
 /**
- * 分析一组图片，返回结构化风格 JSON。
- * @param images base64 图片数组（按编号顺序）
+ * 分析图片，返回结构化后期风格 JSON。
+ * @param images base64 图片数组
  * @param primaryIndexes 重点参考图的编号（从 1 开始）
  */
 export async function analyzeImages(
@@ -75,7 +100,7 @@ export async function analyzeImages(
     {
       role: "user",
       content: [
-        { type: "text", text: `${hint}\n请分析以下参考图片的视觉风格。` },
+        { type: "text", text: `${hint}\n请分析以下照片的后期处理风格（调色、光影、质感、滤镜），不要描述画面中拍了什么物体或场景。` },
         ...images.map((img) => ({
           type: "image_url" as const,
           image_url: { url: `data:${img.mime};base64,${img.base64}` },
@@ -151,7 +176,7 @@ export function parseAnalysisJson(text: string): StyleAnalysis {
     throw new Error("AI 返回中未找到 JSON");
   }
   const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
-  // 兼容旧模型或旧提示词的响应，但从产品数据中永久移除 Typography。
+  // 兼容旧数据：永久移除 Typography
   delete parsed.typography;
   const required = [
     "name",
