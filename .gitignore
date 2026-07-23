@@ -50,3 +50,6 @@ outputs/
 # Python
 __pycache__/
 *.py[cod]
+
+# Local Git worktrees
+.worktrees/
