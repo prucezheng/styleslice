@@ -2,6 +2,7 @@
 
 import { ChangeEvent, DragEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ensureAnonymousAuth, getCachedUserId } from "@/lib/client-auth";
 
 type Confidence = "high" | "medium" | "low";
 
@@ -110,9 +111,26 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canAnalyze = files.length > 0 && stage !== "uploading" && stage !== "analyzing" && stage !== "saving";
+
+  /** 所有 API 请求带上匿名用户 ID */
+  function authHeaders(): Record<string, string> {
+    const uid = getCachedUserId();
+    return uid ? { "x-user-id": uid } : {};
+  }
+
+  // 首次打开：静默匿名登录
+  useEffect(() => {
+    ensureAnonymousAuth()
+      .then(() => setAuthReady(true))
+      .catch((err) => {
+        setMessage(`登录失败：${err instanceof Error ? err.message : String(err)}`);
+        setAuthReady(true); // 即使失败也允许使用 demo
+      });
+  }, []);
 
   useEffect(() => {
     loadStyles();
@@ -134,7 +152,7 @@ export default function Home() {
 
   async function loadStyles() {
     try {
-      const res = await fetch("/api/styles", { cache: "no-store" });
+      const res = await fetch("/api/styles", { cache: "no-store", headers: authHeaders() });
       if (!res.ok) throw new Error("资料库读取失败");
       const data = await res.json();
       const nextStyles: StyleResult[] = data.styles ?? [];
@@ -208,7 +226,7 @@ export default function Home() {
       setStage("saving");
       const saveRes = await fetch("/api/styles", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(analysis),
       });
       const saved = await saveRes.json();

@@ -2,19 +2,12 @@
  * Supabase 存储层：Storage（图片） + PostgreSQL（资料库）
  *
  * 环境变量（Supabase Dashboard → Settings → API）：
- *   NEXT_PUBLIC_SUPABASE_URL      项目 URL
- *   SUPABASE_SERVICE_ROLE_KEY     service_role key（服务端操作）
+ *   NEXT_PUBLIC_SUPABASE_URL           项目 URL
+ *   NEXT_PUBLIC_SUPABASE_ANON_KEY      匿名客户端 key（前端用）
+ *   SUPABASE_SERVICE_ROLE_KEY          service_role key（服务端操作）
  *
- * 初始化（在 Supabase SQL Editor 中运行）：
- *   CREATE TABLE IF NOT EXISTS styles (
- *     style_id TEXT PRIMARY KEY,
- *     data     JSONB NOT NULL,
- *     created_at TIMESTAMPTZ DEFAULT NOW(),
- *     updated_at TIMESTAMPTZ DEFAULT NOW()
- *   );
- *
- * 然后创建 Storage bucket：
- *   Supabase Dashboard → Storage → New Bucket → 名称 "uploads"，勾选 "Public bucket"
+ * 每个用户通过 Supabase 匿名登录获得唯一 user_id，
+ * 所有资料库操作按 user_id 隔离，确保私有灵感库。
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -100,25 +93,39 @@ export async function readUpload(
   return null;
 }
 
+/* ---------- 用户上下文 ---------- */
+
+export function requireUserId(userId: string | null | undefined): string {
+  if (!userId || typeof userId !== "string" || userId.length < 3) {
+    throw new Error("未登录，请刷新页面后重试");
+  }
+  return userId;
+}
+
 /* ---------- 风格资料库（Supabase PostgreSQL） ---------- */
 
-export async function listStyles(): Promise<StyleResult[]> {
+export async function listStyles(userId: string): Promise<StyleResult[]> {
+  requireUserId(userId);
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("styles")
     .select("data")
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []).map((row: { data: StyleResult }) => row.data);
 }
 
-export async function getStyle(styleId: string): Promise<StyleResult | null> {
+export async function getStyle(styleId: string, userId: string): Promise<StyleResult | null> {
+  requireUserId(userId);
+  if (!isValidId(styleId)) return null;
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("styles")
     .select("data")
     .eq("style_id", styleId)
+    .eq("user_id", userId)
     .single();
 
   if (error || !data) return null;
@@ -126,8 +133,10 @@ export async function getStyle(styleId: string): Promise<StyleResult | null> {
 }
 
 export async function createStyle(
-  input: Omit<StyleResult, "styleId" | "version" | "createdAt" | "updatedAt">
+  input: Omit<StyleResult, "styleId" | "version" | "createdAt" | "updatedAt">,
+  userId: string
 ): Promise<StyleResult> {
+  requireUserId(userId);
   const supabase = getSupabase();
   const now = new Date().toISOString();
   const style: StyleResult = {
@@ -140,6 +149,7 @@ export async function createStyle(
 
   const { error } = await supabase.from("styles").insert({
     style_id: style.styleId,
+    user_id: userId,
     data: style,
     created_at: now,
     updated_at: now,
@@ -151,10 +161,12 @@ export async function createStyle(
 
 export async function updateStyle(
   styleId: string,
-  patch: Partial<StyleResult>
+  patch: Partial<StyleResult>,
+  userId: string
 ): Promise<StyleResult | null> {
+  requireUserId(userId);
   const supabase = getSupabase();
-  const current = await getStyle(styleId);
+  const current = await getStyle(styleId, userId);
   if (!current) return null;
 
   const now = new Date().toISOString();
@@ -170,18 +182,21 @@ export async function updateStyle(
   const { error } = await supabase
     .from("styles")
     .update({ data: merged, updated_at: now })
-    .eq("style_id", styleId);
+    .eq("style_id", styleId)
+    .eq("user_id", userId);
 
   if (error) throw error;
   return merged;
 }
 
-export async function deleteStyle(styleId: string): Promise<boolean> {
+export async function deleteStyle(styleId: string, userId: string): Promise<boolean> {
+  requireUserId(userId);
   const supabase = getSupabase();
   const { error, count } = await supabase
     .from("styles")
     .delete({ count: "exact" })
-    .eq("style_id", styleId);
+    .eq("style_id", styleId)
+    .eq("user_id", userId);
 
   if (error) throw error;
   return (count ?? 0) > 0;
