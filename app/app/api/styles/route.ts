@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { listStyles, createStyle } from "@/lib/store";
-import { renderMarkdown, renderPrompt } from "@/lib/md";
+import { renderMarkdown, renderPrompt, renderPromptShort } from "@/lib/md";
 import type { StyleAnalysis } from "@/lib/schema";
 
 export async function GET() {
@@ -16,13 +16,15 @@ export async function POST(req: NextRequest) {
   if (!body || !body.name) {
     return NextResponse.json({ error: "缺少风格数据" }, { status: 400 });
   }
-  const { markdown: _ignored, prompt: _p, fallback: _f, source, ...analysis } = body;
+  const { markdown: _ignored, prompt: _p, promptShort: _ps, fallback: _f, source, ...analysis } = body;
   const md = renderMarkdown(analysis as StyleAnalysis); // 以服务端渲染为准
   const prompt = renderPrompt(analysis as StyleAnalysis);
+  const promptShort = renderPromptShort(analysis as StyleAnalysis);
   const style = await createStyle({
     ...(analysis as StyleAnalysis),
     markdown: md,
     prompt,
+    promptShort,
     source: source ?? { imageIds: [], primaryImageIds: [] },
   });
   return NextResponse.json(style, { status: 201 });

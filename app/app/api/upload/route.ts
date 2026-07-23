@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveUpload, extForMime } from "@/lib/store";
 
 const MAX_SIZE = 20 * 1024 * 1024;
-const MAX_COUNT = 10;
+const MAX_COUNT = 1;
 
 export async function POST(req: NextRequest) {
   let form: FormData;
