@@ -726,7 +726,7 @@ function DetailScreen({
         </section>
 
         <section className="detail-section prompt-section">
-          <h2 className="section-label">AI 生图提示词</h2>
+          <h2 className="section-label">后期处理风格</h2>
           <div className={`prompt-card ${!promptExpanded && isLongPrompt ? "is-clamped" : ""}`}>
             <p>{visiblePrompt}</p>
             {!promptExpanded && isLongPrompt && <span className="prompt-fade" aria-hidden="true" />}
@@ -749,14 +749,14 @@ function DetailScreen({
                 setPromptExpanded(false);
               }}
             >
-              {showFullPrompt ? "← 精简版提示词" : "查看完整提示词 →"}
+              {showFullPrompt ? "← 精简版风格参数" : "查看完整风格指南 →"}
             </button>
           )}
         </section>
 
         <div className="download-actions">
           <button type="button" onClick={handleCopy} className={copied ? "copied" : ""}>
-            <span>{copied ? "✓ 已复制" : "📋 复制提示词"}</span>
+            <span>{copied ? "✓ 已复制" : "📋 复制风格参数"}</span>
           </button>
           <button
             type="button"
